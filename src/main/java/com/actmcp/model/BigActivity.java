@@ -5,7 +5,7 @@ import java.math.BigDecimal;
 public record BigActivity(
         Long id,
         String name,
-        String actType,
+        Integer actType,
         String startTime,
         String endTime,
         String audienceScope,

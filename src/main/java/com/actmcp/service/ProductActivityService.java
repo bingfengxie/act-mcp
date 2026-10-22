@@ -33,7 +33,7 @@ public class ProductActivityService {
     }
 
     public PageResult<ProductActivity> list(int page, int size, Long actId,
-                                            String actType, String keyword) {
+                                            Integer actType, String keyword) {
         page = Math.max(page, 1);
         size = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
         List<ProductActivity> items = productActivityRepository.findPage(
@@ -52,15 +52,15 @@ public class ProductActivityService {
         String operator = ValidationUtils.normalizeOperator(operatorHeader);
         BigActivity parent = requireParent(request.actId());
         String now = ValidationUtils.formatDateTime(LocalDateTime.now());
-        String actType = resolveActType(request.actType(), parent);
+        Integer actType = resolveActType(request.actType(), parent);
 
         ProductActivity activity = new ProductActivity(
                 null,
                 parent.id(),
                 parent.name(),
                 actType,
-                request.poiId().trim(),
-                ValidationUtils.trimToNull(request.skuId()),
+                request.poiId(),
+                request.skuId(),
                 ValidationUtils.trimToNull(request.upc()),
                 ValidationUtils.normalizeJson(objectMapper, request.productDiscountJson(), "商品优惠 JSON"),
                 operator,
@@ -77,15 +77,15 @@ public class ProductActivityService {
         ProductActivity existing = get(id);
         String operator = ValidationUtils.normalizeOperator(operatorHeader);
         BigActivity parent = requireParent(request.actId());
-        String actType = resolveActType(request.actType(), parent);
+        Integer actType = resolveActType(request.actType(), parent);
 
         ProductActivity updated = new ProductActivity(
                 existing.id(),
                 parent.id(),
                 parent.name(),
                 actType,
-                request.poiId().trim(),
-                ValidationUtils.trimToNull(request.skuId()),
+                request.poiId(),
+                request.skuId(),
                 ValidationUtils.trimToNull(request.upc()),
                 ValidationUtils.normalizeJson(objectMapper, request.productDiscountJson(), "商品优惠 JSON"),
                 existing.createdBy(),
@@ -111,7 +111,7 @@ public class ProductActivityService {
                 .orElseThrow(() -> new BadRequestException("所属大活动不存在：" + actId));
     }
 
-    private String resolveActType(String requested, BigActivity parent) {
-        return requested == null || requested.isBlank() ? parent.actType() : requested.trim();
+    private Integer resolveActType(Integer requested, BigActivity parent) {
+        return requested == null ? parent.actType() : requested;
     }
 }

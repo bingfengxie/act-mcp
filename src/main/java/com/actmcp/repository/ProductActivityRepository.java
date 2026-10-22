@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 
 import java.sql.PreparedStatement;
 import java.sql.Statement;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -23,20 +24,24 @@ public class ProductActivityRepository {
             JOIN big_activity a ON a.id = p.act_id
             """;
 
-    private static final RowMapper<ProductActivity> ROW_MAPPER = (rs, rowNum) -> new ProductActivity(
-            rs.getLong("id"),
-            rs.getLong("act_id"),
-            rs.getString("act_name"),
-            rs.getString("act_type"),
-            rs.getString("poi_id"),
-            rs.getString("sku_id"),
-            rs.getString("upc"),
-            rs.getString("product_discount_json"),
-            rs.getString("created_by"),
-            rs.getString("created_at"),
-            rs.getString("updated_by"),
-            rs.getString("updated_at")
-    );
+    private static final RowMapper<ProductActivity> ROW_MAPPER = (rs, rowNum) -> {
+        long skuId = rs.getLong("sku_id");
+        Long nullableSkuId = rs.wasNull() ? null : skuId;
+        return new ProductActivity(
+                rs.getLong("id"),
+                rs.getLong("act_id"),
+                rs.getString("act_name"),
+                rs.getInt("act_type"),
+                rs.getLong("poi_id"),
+                nullableSkuId,
+                rs.getString("upc"),
+                rs.getString("product_discount_json"),
+                rs.getString("created_by"),
+                rs.getString("created_at"),
+                rs.getString("updated_by"),
+                rs.getString("updated_at")
+        );
+    };
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -44,7 +49,7 @@ public class ProductActivityRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public List<ProductActivity> findPage(Long actId, String actType, String keyword,
+    public List<ProductActivity> findPage(Long actId, Integer actType, String keyword,
                                           int page, int size) {
         List<Object> args = new ArrayList<>();
         String where = buildWhere(actId, actType, keyword, args);
@@ -54,7 +59,7 @@ public class ProductActivityRepository {
         return jdbcTemplate.query(sql, ROW_MAPPER, args.toArray());
     }
 
-    public long count(Long actId, String actType, String keyword) {
+    public long count(Long actId, Integer actType, String keyword) {
         List<Object> args = new ArrayList<>();
         String where = buildWhere(actId, actType, keyword, args);
         Long total = jdbcTemplate.queryForObject(
@@ -79,9 +84,13 @@ public class ProductActivityRepository {
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, Statement.RETURN_GENERATED_KEYS);
             ps.setLong(1, activity.actId());
-            ps.setString(2, activity.actType());
-            ps.setString(3, activity.poiId());
-            ps.setString(4, activity.skuId());
+            ps.setInt(2, activity.actType());
+            ps.setLong(3, activity.poiId());
+            if (activity.skuId() == null) {
+                ps.setNull(4, Types.BIGINT);
+            } else {
+                ps.setLong(4, activity.skuId());
+            }
             ps.setString(5, activity.upc());
             ps.setString(6, activity.productDiscountJson());
             ps.setString(7, activity.createdBy());
@@ -123,19 +132,20 @@ public class ProductActivityRepository {
         return count == null ? 0 : count;
     }
 
-    private String buildWhere(Long actId, String actType, String keyword, List<Object> args) {
+    private String buildWhere(Long actId, Integer actType, String keyword, List<Object> args) {
         List<String> conditions = new ArrayList<>();
         if (actId != null) {
             conditions.add("p.act_id = ?");
             args.add(actId);
         }
-        if (actType != null && !actType.isBlank()) {
+        if (actType != null) {
             conditions.add("p.act_type = ?");
-            args.add(actType.trim());
+            args.add(actType);
         }
         if (keyword != null && !keyword.isBlank()) {
             String pattern = "%" + BigActivityRepository.escapeLike(keyword.trim()) + "%";
-            conditions.add("(p.poi_id LIKE ? ESCAPE '\\' OR p.sku_id LIKE ? ESCAPE '\\' "
+            conditions.add("(CAST(p.poi_id AS TEXT) LIKE ? ESCAPE '\\' "
+                    + "OR CAST(p.sku_id AS TEXT) LIKE ? ESCAPE '\\' "
                     + "OR p.upc LIKE ? ESCAPE '\\' OR a.name LIKE ? ESCAPE '\\')");
             args.add(pattern);
             args.add(pattern);

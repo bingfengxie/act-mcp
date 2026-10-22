@@ -36,7 +36,7 @@ public class BigActivityService {
     }
 
     public PageResult<BigActivity> list(int page, int size, String keyword,
-                                        String actType, String audienceScope) {
+                                        Integer actType, String audienceScope) {
         page = Math.max(page, 1);
         size = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
         List<BigActivity> items = bigActivityRepository.findPage(
@@ -67,7 +67,7 @@ public class BigActivityService {
         BigActivity activity = new BigActivity(
                 null,
                 request.name().trim(),
-                request.actType().trim(),
+                request.actType(),
                 ValidationUtils.formatDateTime(start),
                 ValidationUtils.formatDateTime(end),
                 request.audienceScope(),
@@ -94,7 +94,7 @@ public class BigActivityService {
         BigActivity updated = new BigActivity(
                 existing.id(),
                 request.name().trim(),
-                request.actType().trim(),
+                request.actType(),
                 ValidationUtils.formatDateTime(start),
                 ValidationUtils.formatDateTime(end),
                 request.audienceScope(),

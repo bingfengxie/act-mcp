@@ -2,6 +2,8 @@ package com.actmcp.dto;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -14,9 +16,10 @@ public record BigActivityRequest(
         @Size(max = 100, message = "活动名称不能超过 100 个字符")
         String name,
 
-        @NotBlank(message = "活动类型不能为空")
-        @Size(max = 50, message = "活动类型不能超过 50 个字符")
-        String actType,
+        @NotNull(message = "活动类型不能为空")
+        @Min(value = 1, message = "活动类型必须是 1-5 的整数")
+        @Max(value = 5, message = "活动类型必须是 1-5 的整数")
+        Integer actType,
 
         @NotBlank(message = "开始时间不能为空")
         String startTime,

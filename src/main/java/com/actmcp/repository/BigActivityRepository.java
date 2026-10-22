@@ -28,7 +28,7 @@ public class BigActivityRepository {
     private static final RowMapper<BigActivity> ROW_MAPPER = (rs, rowNum) -> new BigActivity(
             rs.getLong("id"),
             rs.getString("name"),
-            rs.getString("act_type"),
+            rs.getInt("act_type"),
             rs.getString("start_time"),
             rs.getString("end_time"),
             rs.getString("audience_scope"),
@@ -47,7 +47,7 @@ public class BigActivityRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public List<BigActivity> findPage(String keyword, String actType, String audienceScope,
+    public List<BigActivity> findPage(String keyword, Integer actType, String audienceScope,
                                       int page, int size) {
         List<Object> args = new ArrayList<>();
         String where = buildWhere(keyword, actType, audienceScope, args);
@@ -57,7 +57,7 @@ public class BigActivityRepository {
         return jdbcTemplate.query(sql, ROW_MAPPER, args.toArray());
     }
 
-    public long count(String keyword, String actType, String audienceScope) {
+    public long count(String keyword, Integer actType, String audienceScope) {
         List<Object> args = new ArrayList<>();
         String where = buildWhere(keyword, actType, audienceScope, args);
         Long total = jdbcTemplate.queryForObject(
@@ -88,7 +88,7 @@ public class BigActivityRepository {
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, Statement.RETURN_GENERATED_KEYS);
             ps.setString(1, activity.name());
-            ps.setString(2, activity.actType());
+            ps.setInt(2, activity.actType());
             ps.setString(3, activity.startTime());
             ps.setString(4, activity.endTime());
             ps.setString(5, activity.audienceScope());
@@ -143,15 +143,15 @@ public class BigActivityRepository {
         return sum == null ? BigDecimal.ZERO : sum;
     }
 
-    private String buildWhere(String keyword, String actType, String audienceScope, List<Object> args) {
+    private String buildWhere(String keyword, Integer actType, String audienceScope, List<Object> args) {
         List<String> conditions = new ArrayList<>();
         if (keyword != null && !keyword.isBlank()) {
             conditions.add("a.name LIKE ? ESCAPE '\\'");
             args.add("%" + escapeLike(keyword.trim()) + "%");
         }
-        if (actType != null && !actType.isBlank()) {
+        if (actType != null) {
             conditions.add("a.act_type = ?");
-            args.add(actType.trim());
+            args.add(actType);
         }
         if (audienceScope != null && !audienceScope.isBlank()) {
             conditions.add("a.audience_scope = ?");

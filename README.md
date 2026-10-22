@@ -78,34 +78,59 @@ spring:
 - 修改数据库位置：调整 `spring.datasource.url`，或启动时传入 `--spring.datasource.url=jdbc:sqlite:/path/to/act-mcp.db`
 - SQLite 已为每个连接启用 `PRAGMA foreign_keys = ON`；删除大活动时服务层也会显式清理关联商品，避免历史库未开启外键时产生脏数据
 
+### 旧数据库升级
+
+如果已有使用旧表结构（`act_type`、`poi_id`、`sku_id` 为 TEXT）的数据库，先停止服务并备份，再执行：
+
+```bash
+sqlite3 data/act-mcp.db < scripts/migrate-v2-int-types.sql
+```
+
+脚本会保留原有数据并自动完成类型与活动类型编码转换。
+
 ## 数据表
+
+### 活动类型编码
+
+| 编码 | 类型 |
+| --- | --- |
+| 1 | 满减活动 |
+| 2 | 折扣活动 |
+| 3 | 秒杀活动 |
+| 4 | 优惠券活动 |
+| 5 | 组合优惠 |
+
+`act_type` 在两张表中均为 `INTEGER`。
 
 ### big_activity（大活动）
 
-| 字段 | 说明 |
-| --- | --- |
-| id | 主键，自增 |
-| name | 活动名称 |
-| act_type | 活动类型 |
-| start_time / end_time | 开始 / 结束时间（`yyyy-MM-dd HH:mm:ss`） |
-| audience_scope | `ALL` 所有用户 / `NEW` 新客 |
-| budget | 预算（元） |
-| collection_discount_json | 集合优惠 JSON |
-| created_by / created_at | 创建人 / 创建时间 |
-| updated_by / updated_at | 修改人 / 最后修改时间 |
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | INTEGER | 主键，自增 |
+| name | TEXT | 活动名称 |
+| act_type | INTEGER | 活动类型编码（1-5） |
+| start_time / end_time | TEXT | 开始 / 结束时间（`yyyy-MM-dd HH:mm:ss`） |
+| audience_scope | TEXT | `ALL` 所有用户 / `NEW` 新客 |
+| budget | NUMERIC | 预算（元） |
+| collection_discount_json | TEXT | 集合优惠 JSON |
+| created_by / created_at | TEXT | 创建人 / 创建时间 |
+| updated_by / updated_at | TEXT | 修改人 / 最后修改时间 |
 
 ### product_activity（商品活动）
 
-| 字段 | 说明 |
-| --- | --- |
-| id | 主键，自增 |
-| act_id | 外键，关联 `big_activity.id`，级联删除 |
-| act_type | 活动类型（留空时自动继承大活动类型） |
-| poi_id | POI ID |
-| sku_id / upc | SKU ID / UPC（可选） |
-| product_discount_json | 商品优惠 JSON |
-| created_by / created_at | 创建人 / 创建时间 |
-| updated_by / updated_at | 修改人 / 最后修改时间 |
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | INTEGER | 主键，自增 |
+| act_id | INTEGER | 外键，关联 `big_activity.id`，级联删除 |
+| act_type | INTEGER | 活动类型编码（留空时自动继承大活动类型） |
+| poi_id | INTEGER | POI ID（64 位整数） |
+| sku_id | INTEGER | SKU ID（64 位整数，可选） |
+| upc | TEXT | UPC（可选） |
+| product_discount_json | TEXT | 商品优惠 JSON |
+| created_by / created_at | TEXT | 创建人 / 创建时间 |
+| updated_by / updated_at | TEXT | 修改人 / 最后修改时间 |
+
+> `poi_id`、`sku_id` 在 JSON 接口中以字符串形式传输，避免 JavaScript 超过 `Number.MAX_SAFE_INTEGER` 后丢失精度；后端仍按 64 位整数存储和校验。
 
 ## API
 
@@ -134,7 +159,7 @@ curl -X POST http://localhost:8090/api/big-activities \
   -H 'X-Operator: alice' \
   -d '{
     "name": "双十一全场满减",
-    "actType": "满减活动",
+    "actType": 1,
     "startTime": "2026-11-01T00:00",
     "endTime": "2026-11-12T23:59",
     "audienceScope": "ALL",
@@ -150,6 +175,7 @@ curl -X POST http://localhost:8090/api/big-activities \
 ```
 act-mcp/
 ├── pom.xml
+├── scripts/               # 旧库类型迁移脚本
 ├── src/main/java/com/actmcp/
 │   ├── ActMcpApplication.java
 │   ├── controller/        # REST 接口

@@ -36,7 +36,7 @@ public class BigActivityController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String actType,
+            @RequestParam(required = false) Integer actType,
             @RequestParam(required = false) String audienceScope) {
         return service.list(page, size, keyword, actType, audienceScope);
     }

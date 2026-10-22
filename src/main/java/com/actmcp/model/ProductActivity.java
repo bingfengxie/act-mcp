@@ -1,12 +1,15 @@
 package com.actmcp.model;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+
 public record ProductActivity(
         Long id,
         Long actId,
         String actName,
-        String actType,
-        String poiId,
-        String skuId,
+        Integer actType,
+        @JsonSerialize(using = ToStringSerializer.class) Long poiId,
+        @JsonSerialize(using = ToStringSerializer.class) Long skuId,
         String upc,
         String productDiscountJson,
         String createdBy,

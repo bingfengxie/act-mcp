@@ -1,22 +1,25 @@
 package com.actmcp.dto;
 
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 public record ProductActivityRequest(
         @NotNull(message = "所属大活动不能为空")
         Long actId,
 
-        @Size(max = 50, message = "活动类型不能超过 50 个字符")
-        String actType,
+        @Min(value = 1, message = "活动类型必须是 1-5 的整数")
+        @Max(value = 5, message = "活动类型必须是 1-5 的整数")
+        Integer actType,
 
-        @NotBlank(message = "POI ID 不能为空")
-        @Size(max = 64, message = "POI ID 不能超过 64 个字符")
-        String poiId,
+        @NotNull(message = "POI ID 不能为空")
+        @Positive(message = "POI ID 必须是正整数")
+        Long poiId,
 
-        @Size(max = 64, message = "SKU ID 不能超过 64 个字符")
-        String skuId,
+        @Positive(message = "SKU ID 必须是正整数")
+        Long skuId,
 
         @Size(max = 64, message = "UPC 不能超过 64 个字符")
         String upc,

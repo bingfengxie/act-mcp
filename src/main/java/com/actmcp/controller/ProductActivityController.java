@@ -33,7 +33,7 @@ public class ProductActivityController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) Long actId,
-            @RequestParam(required = false) String actType,
+            @RequestParam(required = false) Integer actType,
             @RequestParam(required = false) String keyword) {
         return service.list(page, size, actId, actType, keyword);
     }
