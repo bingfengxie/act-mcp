@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Act MCP · 活动管理平台</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%233f5bf6'/%3E%3Cpath d='M18 44l10-24h8l10 24h-7l-2-6H27l-2 6h-7zm11-12h6l-3-8-3 8z' fill='white'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-mark">A</div>
+            <div class="brand-text">
+                <strong>Act MCP</strong>
+                <span>活动管理平台</span>
+            </div>
+        </div>
+
+        <div class="nav-label">工作台</div>
+        <nav class="nav" aria-label="主导航">
+            <button type="button" class="nav-item active" data-view="big">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-13Z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+                <span>大活动管理</span>
+                <span class="nav-badge" id="bigNavCount">0</span>
+            </button>
+            <button type="button" class="nav-item" data-view="product">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.6 12 4l8 3.6v8.8L12 20l-8-3.6V7.6Z"/><path d="m4 7.6 8 3.6 8-3.6M12 11.2V20"/></svg>
+                <span>商品活动管理</span>
+                <span class="nav-badge" id="productNavCount">0</span>
+            </button>
+        </nav>
+
+        <div class="sidebar-foot">
+            <div class="status-dot"></div>
+            <div>
+                <strong>SQLite 本地存储</strong>
+                <span>Spring Boot · MVC</span>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main">
+        <header class="topbar">
+            <div class="page-heading">
+                <h1 id="pageTitle">大活动管理</h1>
+                <p id="pageSubtitle">维护活动主体信息与全局优惠配置</p>
+            </div>
+            <div class="topbar-actions">
+                <label class="operator-field">
+                    <span>操作人</span>
+                    <input id="operatorInput" type="text" maxlength="50" autocomplete="off" aria-label="当前操作人">
+                </label>
+                <button type="button" class="icon-button" id="refreshBtn" title="刷新数据" aria-label="刷新数据">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 6.3"/><path d="M20 4v7h-7"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <section class="stats-grid" aria-label="数据概览">
+            <article class="stat-card">
+                <div class="stat-icon indigo">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-13Z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+                </div>
+                <div class="stat-body">
+                    <span class="stat-label">大活动总数</span>
+                    <strong class="stat-value" id="statBig">—</strong>
+                </div>
+            </article>
+            <article class="stat-card">
+                <div class="stat-icon cyan">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.6 12 4l8 3.6v8.8L12 20l-8-3.6V7.6Z"/><path d="m4 7.6 8 3.6 8-3.6M12 11.2V20"/></svg>
+                </div>
+                <div class="stat-body">
+                    <span class="stat-label">商品活动总数</span>
+                    <strong class="stat-value" id="statProduct">—</strong>
+                </div>
+            </article>
+            <article class="stat-card">
+                <div class="stat-icon green">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l2.8 1.8"/></svg>
+                </div>
+                <div class="stat-body">
+                    <span class="stat-label">进行中活动</span>
+                    <strong class="stat-value" id="statOngoing">—</strong>
+                </div>
+            </article>
+            <article class="stat-card">
+                <div class="stat-icon amber">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/></svg>
+                </div>
+                <div class="stat-body">
+                    <span class="stat-label">活动总预算</span>
+                    <strong class="stat-value" id="statBudget">—</strong>
+                </div>
+            </article>
+        </section>
+
+        <section class="panel" id="bigView">
+            <div class="panel-head">
+                <div>
+                    <h2>大活动列表</h2>
+                    <p>活动主体、时间范围、预算与集合优惠配置</p>
+                </div>
+                <button type="button" class="button primary" id="addBigBtn">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                    新建大活动
+                </button>
+            </div>
+
+            <div class="filters">
+                <label class="search-field">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                    <input type="search" id="bigKeyword" placeholder="搜索活动名称" autocomplete="off">
+                </label>
+                <select id="bigTypeFilter" aria-label="按活动类型筛选">
+                    <option value="">全部类型</option>
+                </select>
+                <select id="bigScopeFilter" aria-label="按活动人群筛选">
+                    <option value="">全部人群</option>
+                    <option value="ALL">所有用户</option>
+                    <option value="NEW">新客专享</option>
+                </select>
+                <button type="button" class="button ghost" id="bigResetBtn">重置</button>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>活动</th>
+                        <th>类型</th>
+                        <th>活动时间</th>
+                        <th>人群</th>
+                        <th class="num">预算</th>
+                        <th class="num">商品数</th>
+                        <th>最后修改</th>
+                        <th class="actions-col">操作</th>
+                    </tr>
+                    </thead>
+                    <tbody id="bigTableBody"></tbody>
+                </table>
+                <div class="empty-state" id="bigEmpty" hidden>
+                    <div class="empty-icon">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18M8 14h3M8 17h6"/></svg>
+                    </div>
+                    <h3>还没有大活动</h3>
+                    <p>创建第一个大活动后，即可为它配置商品活动。</p>
+                    <button type="button" class="button primary" id="bigEmptyAddBtn">新建大活动</button>
+                </div>
+            </div>
+
+            <div class="pagination">
+                <span class="page-summary" id="bigPageSummary">共 0 条</span>
+                <div class="page-buttons" id="bigPageButtons"></div>
+            </div>
+        </section>
+
+        <section class="panel" id="productView" hidden>
+            <div class="panel-head">
+                <div>
+                    <h2>商品活动列表</h2>
+                    <p>按商品维度配置 POI、SKU、UPC 与商品级优惠</p>
+                </div>
+                <button type="button" class="button primary" id="addProductBtn">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                    新建商品活动
+                </button>
+            </div>
+
+            <div class="filters">
+                <label class="search-field">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                    <input type="search" id="productKeyword" placeholder="搜索活动名称 / POI / SKU / UPC" autocomplete="off">
+                </label>
+                <select id="productActFilter" aria-label="按大活动筛选">
+                    <option value="">全部大活动</option>
+                </select>
+                <select id="productTypeFilter" aria-label="按活动类型筛选">
+                    <option value="">全部类型</option>
+                </select>
+                <button type="button" class="button ghost" id="productResetBtn">重置</button>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>商品标识</th>
+                        <th>所属大活动</th>
+                        <th>类型</th>
+                        <th>优惠配置</th>
+                        <th>最后修改</th>
+                        <th class="actions-col">操作</th>
+                    </tr>
+                    </thead>
+                    <tbody id="productTableBody"></tbody>
+                </table>
+                <div class="empty-state" id="productEmpty" hidden>
+                    <div class="empty-icon">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.6 12 4l8 3.6v8.8L12 20l-8-3.6V7.6Z"/><path d="m4 7.6 8 3.6 8-3.6M12 11.2V20"/></svg>
+                    </div>
+                    <h3>还没有匹配的商品活动</h3>
+                    <p>选择一个大活动，为其中的商品配置优惠。</p>
+                    <button type="button" class="button primary" id="productEmptyAddBtn">新建商品活动</button>
+                </div>
+            </div>
+
+            <div class="pagination">
+                <span class="page-summary" id="productPageSummary">共 0 条</span>
+                <div class="page-buttons" id="productPageButtons"></div>
+            </div>
+        </section>
+
+        <footer class="page-footer">
+            <span>Act MCP · 活动数据管理</span>
+            <span>数据保存在本地 SQLite 数据库</span>
+        </footer>
+    </main>
+</div>
+
+<!-- 大活动表单 -->
+<div class="modal-backdrop" id="bigModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="bigModalTitle">
+        <header class="modal-head">
+            <div>
+                <h3 id="bigModalTitle">新建大活动</h3>
+                <p>活动主体信息与集合优惠配置</p>
+            </div>
+            <button type="button" class="icon-button close-modal" data-close="bigModal" aria-label="关闭">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
+        </header>
+        <form id="bigForm" novalidate>
+            <div class="modal-body">
+                <div class="form-grid">
+                    <label class="field span-2">
+                        <span>活动名称 <em>*</em></span>
+                        <input type="text" id="bigName" maxlength="100" placeholder="例如：双十一全场满减" required>
+                    </label>
+                    <label class="field">
+                        <span>活动类型 <em>*</em></span>
+                        <input type="text" id="bigActType" list="actTypeList" maxlength="50" placeholder="选择或输入类型" required>
+                    </label>
+                    <label class="field">
+                        <span>活动人群 <em>*</em></span>
+                        <select id="bigScope">
+                            <option value="ALL">所有用户</option>
+                            <option value="NEW">新客专享</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span>开始时间 <em>*</em></span>
+                        <input type="datetime-local" id="bigStart" required>
+                    </label>
+                    <label class="field">
+                        <span>结束时间 <em>*</em></span>
+                        <input type="datetime-local" id="bigEnd" required>
+                    </label>
+                    <label class="field">
+                        <span>预算（元） <em>*</em></span>
+                        <input type="number" id="bigBudget" min="0" step="0.01" placeholder="0.00" required>
+                    </label>
+                    <label class="field span-2">
+                        <span>集合优惠 JSON</span>
+                        <div class="json-editor">
+                            <textarea id="bigJson" rows="6" spellcheck="false" placeholder='{"threshold": 100, "discount": 20}'></textarea>
+                            <div class="json-toolbar">
+                                <button type="button" class="text-button" id="formatBigJson">格式化 JSON</button>
+                                <span>需为合法 JSON，留空时保存为 <code>{}</code></span>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+                <div class="form-error" id="bigFormError" hidden></div>
+            </div>
+            <footer class="modal-foot">
+                <button type="button" class="button ghost" data-close="bigModal">取消</button>
+                <button type="submit" class="button primary" id="bigSubmitBtn">保存活动</button>
+            </footer>
+        </form>
+    </div>
+</div>
+
+<!-- 商品活动表单 -->
+<div class="modal-backdrop" id="productModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="productModalTitle">
+        <header class="modal-head">
+            <div>
+                <h3 id="productModalTitle">新建商品活动</h3>
+                <p>绑定大活动并配置商品级优惠</p>
+            </div>
+            <button type="button" class="icon-button close-modal" data-close="productModal" aria-label="关闭">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
+        </header>
+        <form id="productForm" novalidate>
+            <div class="modal-body">
+                <div class="form-grid">
+                    <label class="field span-2">
+                        <span>所属大活动 <em>*</em></span>
+                        <select id="productActId" required>
+                            <option value="">请选择大活动</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span>活动类型 <em>*</em></span>
+                        <input type="text" id="productActType" list="actTypeList" maxlength="50" placeholder="默认跟随所属大活动" required>
+                    </label>
+                    <label class="field">
+                        <span>POI ID <em>*</em></span>
+                        <input type="text" id="productPoiId" maxlength="64" placeholder="例如：POI_10001" required>
+                    </label>
+                    <label class="field">
+                        <span>SKU ID</span>
+                        <input type="text" id="productSkuId" maxlength="64" placeholder="可选">
+                    </label>
+                    <label class="field">
+                        <span>UPC</span>
+                        <input type="text" id="productUpc" maxlength="64" placeholder="可选">
+                    </label>
+                    <label class="field span-2">
+                        <span>商品优惠 JSON</span>
+                        <div class="json-editor">
+                            <textarea id="productJson" rows="6" spellcheck="false" placeholder='{"discountPrice": 9.9, "stock": 100}'></textarea>
+                            <div class="json-toolbar">
+                                <button type="button" class="text-button" id="formatProductJson">格式化 JSON</button>
+                                <span>需为合法 JSON，留空时保存为 <code>{}</code></span>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+                <div class="form-error" id="productFormError" hidden></div>
+            </div>
+            <footer class="modal-foot">
+                <button type="button" class="button ghost" data-close="productModal">取消</button>
+                <button type="submit" class="button primary" id="productSubmitBtn">保存商品活动</button>
+            </footer>
+        </form>
+    </div>
+</div>
+
+<!-- JSON 查看 -->
+<div class="modal-backdrop" id="jsonModal" hidden>
+    <div class="modal modal-sm" role="dialog" aria-modal="true" aria-labelledby="jsonModalTitle">
+        <header class="modal-head">
+            <div>
+                <h3 id="jsonModalTitle">优惠 JSON</h3>
+                <p id="jsonModalSubtitle">格式化预览</p>
+            </div>
+            <button type="button" class="icon-button" data-close="jsonModal" aria-label="关闭">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
+        </header>
+        <div class="modal-body">
+            <pre class="json-view" id="jsonViewContent"></pre>
+        </div>
+        <footer class="modal-foot">
+            <button type="button" class="button ghost" data-close="jsonModal">关闭</button>
+            <button type="button" class="button primary" id="copyJsonBtn">复制 JSON</button>
+        </footer>
+    </div>
+</div>
+
+<!-- 删除确认 -->
+<div class="modal-backdrop" id="confirmModal" hidden>
+    <div class="modal modal-xs" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle">
+        <div class="confirm-body">
+            <div class="confirm-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v5M12 17h.01"/><path d="M10.3 3.9 2.8 17a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+            </div>
+            <h3 id="confirmTitle">确认删除？</h3>
+            <p id="confirmMessage"></p>
+        </div>
+        <footer class="modal-foot">
+            <button type="button" class="button ghost" data-close="confirmModal">取消</button>
+            <button type="button" class="button danger" id="confirmDeleteBtn">确认删除</button>
+        </footer>
+    </div>
+</div>
+
+<datalist id="actTypeList">
+    <option value="满减活动"></option>
+    <option value="折扣活动"></option>
+    <option value="秒杀活动"></option>
+    <option value="优惠券活动"></option>
+    <option value="组合优惠"></option>
+</datalist>
+
+<div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+<script src="/app.js" defer></script>
+</body>
+</html>

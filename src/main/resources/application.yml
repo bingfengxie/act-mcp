@@ -1,0 +1,28 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: act-mcp
+  datasource:
+    url: jdbc:sqlite:./data/act-mcp.db
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      connection-init-sql: PRAGMA foreign_keys = ON
+      connection-test-query: SELECT 1
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+  jackson:
+    default-property-inclusion: non_null
+    time-zone: Asia/Shanghai
+  mvc:
+    problemdetails:
+      enabled: false
+
+logging:
+  level:
+    com.actmcp: INFO
