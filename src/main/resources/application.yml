@@ -23,6 +23,15 @@ spring:
     problemdetails:
       enabled: false
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: mappings
+  endpoint:
+    mappings:
+      enabled: true
+
 logging:
   level:
     com.actmcp: INFO

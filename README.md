@@ -170,6 +170,27 @@ curl -X POST http://localhost:8090/api/big-activities \
 
 时间字段接受 `yyyy-MM-ddTHH:mm`、`yyyy-MM-dd HH:mm`、`yyyy-MM-dd HH:mm:ss` 格式，统一按 `yyyy-MM-dd HH:mm:ss` 存储与返回。
 
+## 接口清单（Actuator）
+
+系统引入了 Spring Boot Actuator，并仅对外暴露 `mappings` 端点，可用于查看 Spring MVC 当前注册的所有后端接口：
+
+```
+GET http://localhost:8090/actuator/mappings
+```
+
+返回 JSON 中的 `contexts.application.mappings.dispatcherServlets` 节点包含每个 Controller 方法、请求方法和路径映射。相关配置：
+
+```yaml
+management:
+  endpoints:
+    web:
+      exposure:
+        include: mappings
+  endpoint:
+    mappings:
+      enabled: true
+```
+
 ## 项目结构
 
 ```
