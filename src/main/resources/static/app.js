@@ -154,7 +154,7 @@ function debounce(fn, delay) {
 }
 
 async function api(path, options = {}) {
-    const headers = { 'X-Operator': state.operator || 'admin' };
+    const headers = {};
     const init = { method: options.method || 'GET', headers };
 
     if (options.body !== undefined) {
@@ -1009,7 +1009,8 @@ async function submitBigForm(event) {
         endTime,
         audienceScope,
         budget: Number(budgetValue),
-        collectionDiscountJson
+        collectionDiscountJson,
+        operator: state.operator || 'admin'
     };
     const button = $('#bigSubmitBtn');
     setButtonLoading(button, true, '保存中…');
@@ -1019,7 +1020,10 @@ async function submitBigForm(event) {
             await api('/api/big-activities', { method: 'POST', body: payload });
             toast('大活动创建成功', 'success');
         } else {
-            await api(`/api/big-activities/${state.editingBigId}`, { method: 'PUT', body: payload });
+            await api('/api/big-activities', {
+                method: 'PUT',
+                body: { ...payload, id: state.editingBigId }
+            });
             toast('大活动更新成功', 'success');
         }
         closeModal('bigModal');
@@ -1083,7 +1087,8 @@ async function submitProductForm(event) {
         poiId,
         skuId: skuId || null,
         upc,
-        productDiscountJson
+        productDiscountJson,
+        operator: state.operator || 'admin'
     };
     const button = $('#productSubmitBtn');
     setButtonLoading(button, true, '保存中…');
@@ -1093,7 +1098,10 @@ async function submitProductForm(event) {
             await api('/api/product-activities', { method: 'POST', body: payload });
             toast('商品活动创建成功', 'success');
         } else {
-            await api(`/api/product-activities/${state.editingProductId}`, { method: 'PUT', body: payload });
+            await api('/api/product-activities', {
+                method: 'PUT',
+                body: { ...payload, id: state.editingProductId }
+            });
             toast('商品活动更新成功', 'success');
         }
         closeModal('productModal');

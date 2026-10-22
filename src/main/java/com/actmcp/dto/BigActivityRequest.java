@@ -12,6 +12,8 @@ import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 
 public record BigActivityRequest(
+        Long id,
+
         @NotBlank(message = "活动名称不能为空")
         @Size(max = 100, message = "活动名称不能超过 100 个字符")
         String name,
@@ -36,6 +38,8 @@ public record BigActivityRequest(
         @Digits(integer = 12, fraction = 2, message = "预算最多 12 位整数和 2 位小数")
         BigDecimal budget,
 
-        String collectionDiscountJson
+        String collectionDiscountJson,
+
+        String operator
 ) {
 }

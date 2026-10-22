@@ -7,6 +7,8 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 public record ProductActivityRequest(
+        Long id,
+
         @NotNull(message = "所属大活动不能为空")
         Long actId,
 
@@ -24,6 +26,8 @@ public record ProductActivityRequest(
         @Size(max = 64, message = "UPC 不能超过 64 个字符")
         String upc,
 
-        String productDiscountJson
+        String productDiscountJson,
+
+        String operator
 ) {
 }

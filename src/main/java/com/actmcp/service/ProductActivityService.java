@@ -1,6 +1,7 @@
 package com.actmcp.service;
 
 import com.actmcp.dto.PageResult;
+import com.actmcp.dto.ProductActivityQuery;
 import com.actmcp.dto.ProductActivityRequest;
 import com.actmcp.exception.BadRequestException;
 import com.actmcp.exception.NotFoundException;
@@ -32,13 +33,13 @@ public class ProductActivityService {
         this.objectMapper = objectMapper;
     }
 
-    public PageResult<ProductActivity> list(int page, int size, Long actId,
-                                            Integer actType, String keyword) {
-        page = Math.max(page, 1);
-        size = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+    public PageResult<ProductActivity> list(ProductActivityQuery query) {
+        int page = Math.max(query.getPage(), 1);
+        int size = Math.min(Math.max(query.getSize(), 1), MAX_PAGE_SIZE);
         List<ProductActivity> items = productActivityRepository.findPage(
-                actId, actType, keyword, page, size);
-        long total = productActivityRepository.count(actId, actType, keyword);
+                query.getActId(), query.getActType(), query.getKeyword(), page, size);
+        long total = productActivityRepository.count(
+                query.getActId(), query.getActType(), query.getKeyword());
         return PageResult.of(items, total, page, size);
     }
 
@@ -48,8 +49,11 @@ public class ProductActivityService {
     }
 
     @Transactional
-    public ProductActivity create(ProductActivityRequest request, String operatorHeader) {
-        String operator = ValidationUtils.normalizeOperator(operatorHeader);
+    public ProductActivity create(ProductActivityRequest request) {
+        if (request.id() != null) {
+            throw new BadRequestException("新建商品活动时不能指定 id");
+        }
+        String operator = ValidationUtils.normalizeOperator(request.operator());
         BigActivity parent = requireParent(request.actId());
         String now = ValidationUtils.formatDateTime(LocalDateTime.now());
         Integer actType = resolveActType(request.actType(), parent);
@@ -73,9 +77,12 @@ public class ProductActivityService {
     }
 
     @Transactional
-    public ProductActivity update(long id, ProductActivityRequest request, String operatorHeader) {
-        ProductActivity existing = get(id);
-        String operator = ValidationUtils.normalizeOperator(operatorHeader);
+    public ProductActivity update(ProductActivityRequest request) {
+        if (request.id() == null) {
+            throw new BadRequestException("商品活动 id 不能为空");
+        }
+        ProductActivity existing = get(request.id());
+        String operator = ValidationUtils.normalizeOperator(request.operator());
         BigActivity parent = requireParent(request.actId());
         Integer actType = resolveActType(request.actType(), parent);
 
@@ -94,7 +101,7 @@ public class ProductActivityService {
                 ValidationUtils.formatDateTime(LocalDateTime.now())
         );
         productActivityRepository.update(updated);
-        return get(id);
+        return get(request.id());
     }
 
     @Transactional

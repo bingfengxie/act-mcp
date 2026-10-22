@@ -1,6 +1,7 @@
 package com.actmcp.controller;
 
 import com.actmcp.dto.ActivityOption;
+import com.actmcp.dto.BigActivityQuery;
 import com.actmcp.dto.BigActivityRequest;
 import com.actmcp.dto.PageResult;
 import com.actmcp.model.BigActivity;
@@ -10,13 +11,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -32,13 +32,8 @@ public class BigActivityController {
     }
 
     @GetMapping
-    public PageResult<BigActivity> list(
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) Integer actType,
-            @RequestParam(required = false) String audienceScope) {
-        return service.list(page, size, keyword, actType, audienceScope);
+    public PageResult<BigActivity> list(@ModelAttribute BigActivityQuery query) {
+        return service.list(query);
     }
 
     @GetMapping("/options")
@@ -52,19 +47,14 @@ public class BigActivityController {
     }
 
     @PostMapping
-    public ResponseEntity<BigActivity> create(
-            @Valid @RequestBody BigActivityRequest request,
-            @RequestHeader(value = "X-Operator", required = false) String operator) {
-        BigActivity created = service.create(request, operator);
+    public ResponseEntity<BigActivity> create(@Valid @RequestBody BigActivityRequest request) {
+        BigActivity created = service.create(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    @PutMapping("/{id}")
-    public BigActivity update(
-            @PathVariable long id,
-            @Valid @RequestBody BigActivityRequest request,
-            @RequestHeader(value = "X-Operator", required = false) String operator) {
-        return service.update(id, request, operator);
+    @PutMapping
+    public BigActivity update(@Valid @RequestBody BigActivityRequest request) {
+        return service.update(request);
     }
 
     @DeleteMapping("/{id}")

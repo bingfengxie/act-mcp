@@ -1,6 +1,7 @@
 package com.actmcp.service;
 
 import com.actmcp.dto.ActivityOption;
+import com.actmcp.dto.BigActivityQuery;
 import com.actmcp.dto.BigActivityRequest;
 import com.actmcp.dto.PageResult;
 import com.actmcp.dto.Stats;
@@ -35,13 +36,13 @@ public class BigActivityService {
         this.objectMapper = objectMapper;
     }
 
-    public PageResult<BigActivity> list(int page, int size, String keyword,
-                                        Integer actType, String audienceScope) {
-        page = Math.max(page, 1);
-        size = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+    public PageResult<BigActivity> list(BigActivityQuery query) {
+        int page = Math.max(query.getPage(), 1);
+        int size = Math.min(Math.max(query.getSize(), 1), MAX_PAGE_SIZE);
         List<BigActivity> items = bigActivityRepository.findPage(
-                keyword, actType, audienceScope, page, size);
-        long total = bigActivityRepository.count(keyword, actType, audienceScope);
+                query.getKeyword(), query.getActType(), query.getAudienceScope(), page, size);
+        long total = bigActivityRepository.count(
+                query.getKeyword(), query.getActType(), query.getAudienceScope());
         return PageResult.of(items, total, page, size);
     }
 
@@ -57,8 +58,11 @@ public class BigActivityService {
     }
 
     @Transactional
-    public BigActivity create(BigActivityRequest request, String operatorHeader) {
-        String operator = ValidationUtils.normalizeOperator(operatorHeader);
+    public BigActivity create(BigActivityRequest request) {
+        if (request.id() != null) {
+            throw new BadRequestException("新建大活动时不能指定 id");
+        }
+        String operator = ValidationUtils.normalizeOperator(request.operator());
         LocalDateTime start = ValidationUtils.parseDateTime(request.startTime(), "开始时间");
         LocalDateTime end = ValidationUtils.parseDateTime(request.endTime(), "结束时间");
         validateTimeRange(start, end);
@@ -84,9 +88,12 @@ public class BigActivityService {
     }
 
     @Transactional
-    public BigActivity update(long id, BigActivityRequest request, String operatorHeader) {
-        BigActivity existing = get(id);
-        String operator = ValidationUtils.normalizeOperator(operatorHeader);
+    public BigActivity update(BigActivityRequest request) {
+        if (request.id() == null) {
+            throw new BadRequestException("大活动 id 不能为空");
+        }
+        BigActivity existing = get(request.id());
+        String operator = ValidationUtils.normalizeOperator(request.operator());
         LocalDateTime start = ValidationUtils.parseDateTime(request.startTime(), "开始时间");
         LocalDateTime end = ValidationUtils.parseDateTime(request.endTime(), "结束时间");
         validateTimeRange(start, end);
@@ -107,7 +114,7 @@ public class BigActivityService {
                 existing.productCount()
         );
         bigActivityRepository.update(updated);
-        return get(id);
+        return get(request.id());
     }
 
     @Transactional

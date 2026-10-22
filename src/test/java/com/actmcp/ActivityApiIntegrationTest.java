@@ -1,5 +1,8 @@
 package com.actmcp;
 
+import com.actmcp.controller.BigActivityController;
+import com.actmcp.controller.ProductActivityController;
+import com.actmcp.controller.StatsController;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterAll;
@@ -20,6 +23,8 @@ import org.springframework.test.web.servlet.MvcResult;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -63,6 +68,15 @@ class ActivityApiIntegrationTest {
     private TestRestTemplate restTemplate;
 
     @Autowired
+    private BigActivityController bigActivityController;
+
+    @Autowired
+    private ProductActivityController productActivityController;
+
+    @Autowired
+    private StatsController statsController;
+
+    @Autowired
     private ObjectMapper objectMapper;
 
     @Autowired
@@ -77,7 +91,6 @@ class ActivityApiIntegrationTest {
     @Test
     void supportsFullCrudForBothTablesAndCascadeDelete() throws Exception {
         MvcResult bigResult = mockMvc.perform(post("/api/big-activities")
-                        .header("X-Operator", "alice")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -87,7 +100,8 @@ class ActivityApiIntegrationTest {
                                   "endTime": "2026-10-31T23:59",
                                   "audienceScope": "ALL",
                                   "budget": 1000.50,
-                                  "collectionDiscountJson": "{\\"threshold\\":100}"
+                                  "collectionDiscountJson": "{\\"threshold\\":100}",
+                                  "operator": "alice"
                                 }
                                 """))
                 .andExpect(status().isCreated())
@@ -100,7 +114,6 @@ class ActivityApiIntegrationTest {
         long bigId = readId(bigResult);
 
         MvcResult productResult = mockMvc.perform(post("/api/product-activities")
-                        .header("X-Operator", "alice")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -108,7 +121,8 @@ class ActivityApiIntegrationTest {
                                   "poiId": "9007199254740993",
                                   "skuId": "9001",
                                   "upc": "6901234567890",
-                                  "productDiscountJson": "{\\"price\\":9.9}"
+                                  "productDiscountJson": "{\\"price\\":9.9}",
+                                  "operator": "alice"
                                 }
                                 """.formatted(bigId)))
                 .andExpect(status().isCreated())
@@ -120,18 +134,19 @@ class ActivityApiIntegrationTest {
 
         long productId = readId(productResult);
 
-        mockMvc.perform(put("/api/product-activities/{id}", productId)
-                        .header("X-Operator", "carol")
+        mockMvc.perform(put("/api/product-activities")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
+                                  "id": %d,
                                   "actId": %d,
                                   "actType": 2,
                                   "poiId": "1002",
                                   "upc": "6901234567890",
-                                  "productDiscountJson": "{}"
+                                  "productDiscountJson": "{}",
+                                  "operator": "carol"
                                 }
-                                """.formatted(bigId)))
+                                """.formatted(productId, bigId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.actType").value(2))
                 .andExpect(jsonPath("$.poiId").value("1002"))
@@ -152,20 +167,21 @@ class ActivityApiIntegrationTest {
                 .andExpect(jsonPath("$.items[0].poiId").value("1002"))
                 .andExpect(jsonPath("$.items[0].skuId").doesNotExist());
 
-        mockMvc.perform(put("/api/big-activities/{id}", bigId)
-                        .header("X-Operator", "bob")
+        mockMvc.perform(put("/api/big-activities")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
+                                  "id": %d,
                                   "name": "测试大活动（更新）",
                                   "actType": 1,
                                   "startTime": "2026-10-01T00:00",
                                   "endTime": "2026-11-01T23:59",
                                   "audienceScope": "NEW",
                                   "budget": 2000,
-                                  "collectionDiscountJson": "{}"
+                                  "collectionDiscountJson": "{}",
+                                  "operator": "bob"
                                 }
-                                """))
+                                """.formatted(bigId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("测试大活动（更新）"))
                 .andExpect(jsonPath("$.audienceScope").value("NEW"))
@@ -253,6 +269,16 @@ class ActivityApiIntegrationTest {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("所属大活动不存在")));
+    }
+
+    @Test
+    void controllerMethodsAcceptAtMostOneParameter() {
+        List.of(bigActivityController, productActivityController, statsController).forEach((controller) ->
+                Arrays.stream(controller.getClass().getDeclaredMethods())
+                        .filter((method) -> !method.isSynthetic())
+                        .forEach((method) -> assertThat(method.getParameterCount())
+                                .as("%s#%s", controller.getClass().getSimpleName(), method.getName())
+                                .isLessThanOrEqualTo(1)));
     }
 
     @Test

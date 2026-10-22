@@ -134,7 +134,7 @@ sqlite3 data/act-mcp.db < scripts/migrate-v2-int-types.sql
 
 ## API
 
-所有写操作通过请求头 `X-Operator` 传递操作人；未传时记为 `admin`。
+所有 Controller 方法最多接收一个参数对象。写操作的 `operator` 统一放在请求体中；更新操作的 `id` 也放在请求体中，`PUT` 请求发往集合路径。`operator` 未传时记为 `admin`。
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
@@ -142,12 +142,12 @@ sqlite3 data/act-mcp.db < scripts/migrate-v2-int-types.sql
 | GET | `/api/big-activities/options` | 获取大活动下拉选项 |
 | GET | `/api/big-activities/{id}` | 查询大活动详情 |
 | POST | `/api/big-activities` | 新建大活动 |
-| PUT | `/api/big-activities/{id}` | 更新大活动 |
+| PUT | `/api/big-activities` | 更新大活动（`id` 在请求体） |
 | DELETE | `/api/big-activities/{id}` | 删除大活动（级联删除商品活动） |
 | GET | `/api/product-activities` | 分页查询商品活动，支持 `page`、`size`、`actId`、`actType`、`keyword` |
 | GET | `/api/product-activities/{id}` | 查询商品活动详情 |
 | POST | `/api/product-activities` | 新建商品活动 |
-| PUT | `/api/product-activities/{id}` | 更新商品活动 |
+| PUT | `/api/product-activities` | 更新商品活动（`id` 在请求体） |
 | DELETE | `/api/product-activities/{id}` | 删除商品活动 |
 | GET | `/api/stats` | 统计数据 |
 
@@ -156,7 +156,6 @@ sqlite3 data/act-mcp.db < scripts/migrate-v2-int-types.sql
 ```bash
 curl -X POST http://localhost:8090/api/big-activities \
   -H 'Content-Type: application/json' \
-  -H 'X-Operator: alice' \
   -d '{
     "name": "双十一全场满减",
     "actType": 1,
@@ -164,7 +163,26 @@ curl -X POST http://localhost:8090/api/big-activities \
     "endTime": "2026-11-12T23:59",
     "audienceScope": "ALL",
     "budget": 50000,
-    "collectionDiscountJson": "{\"threshold\":100,\"discount\":20}"
+    "collectionDiscountJson": "{\"threshold\":100,\"discount\":20}",
+    "operator": "alice"
+  }'
+```
+
+更新示例：
+
+```bash
+curl -X PUT http://localhost:8090/api/big-activities \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "id": 1,
+    "name": "双十一全场满减（调整）",
+    "actType": 1,
+    "startTime": "2026-11-01T00:00",
+    "endTime": "2026-11-15T23:59",
+    "audienceScope": "ALL",
+    "budget": 60000,
+    "collectionDiscountJson": "{}",
+    "operator": "bob"
   }'
 ```
 
