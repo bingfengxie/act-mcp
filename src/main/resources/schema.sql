@@ -3,7 +3,7 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS big_activity (
     id                       INTEGER PRIMARY KEY AUTOINCREMENT,
     name                     TEXT    NOT NULL,
-    act_type                 TEXT    NOT NULL,
+    act_type                 INTEGER NOT NULL,
     start_time               TEXT    NOT NULL,
     end_time                 TEXT    NOT NULL,
     audience_scope           TEXT    NOT NULL DEFAULT 'ALL',
@@ -21,9 +21,9 @@ CREATE INDEX IF NOT EXISTS idx_big_activity_act_type ON big_activity (act_type);
 CREATE TABLE IF NOT EXISTS product_activity (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
     act_id                  INTEGER NOT NULL,
-    act_type                TEXT    NOT NULL,
-    poi_id                  TEXT    NOT NULL,
-    sku_id                  TEXT,
+    act_type                INTEGER NOT NULL,
+    poi_id                  INTEGER NOT NULL,
+    sku_id                  INTEGER,
     upc                     TEXT,
     product_discount_json   TEXT    NOT NULL DEFAULT '{}',
     created_by              TEXT    NOT NULL,

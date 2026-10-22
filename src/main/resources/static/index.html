@@ -241,7 +241,14 @@
                     </label>
                     <label class="field">
                         <span>活动类型 <em>*</em></span>
-                        <input type="text" id="bigActType" list="actTypeList" maxlength="50" placeholder="选择或输入类型" required>
+                        <select id="bigActType" required>
+                            <option value="">请选择活动类型</option>
+                            <option value="1">1 · 满减活动</option>
+                            <option value="2">2 · 折扣活动</option>
+                            <option value="3">3 · 秒杀活动</option>
+                            <option value="4">4 · 优惠券活动</option>
+                            <option value="5">5 · 组合优惠</option>
+                        </select>
                     </label>
                     <label class="field">
                         <span>活动人群 <em>*</em></span>
@@ -306,15 +313,22 @@
                     </label>
                     <label class="field">
                         <span>活动类型 <em>*</em></span>
-                        <input type="text" id="productActType" list="actTypeList" maxlength="50" placeholder="默认跟随所属大活动" required>
+                        <select id="productActType" required>
+                            <option value="">请选择活动类型</option>
+                            <option value="1">1 · 满减活动</option>
+                            <option value="2">2 · 折扣活动</option>
+                            <option value="3">3 · 秒杀活动</option>
+                            <option value="4">4 · 优惠券活动</option>
+                            <option value="5">5 · 组合优惠</option>
+                        </select>
                     </label>
                     <label class="field">
                         <span>POI ID <em>*</em></span>
-                        <input type="text" id="productPoiId" maxlength="64" placeholder="例如：POI_10001" required>
+                        <input type="text" id="productPoiId" inputmode="numeric" pattern="[0-9]*" maxlength="19" placeholder="例如：10001" required>
                     </label>
                     <label class="field">
                         <span>SKU ID</span>
-                        <input type="text" id="productSkuId" maxlength="64" placeholder="可选">
+                        <input type="text" id="productSkuId" inputmode="numeric" pattern="[0-9]*" maxlength="19" placeholder="可选">
                     </label>
                     <label class="field">
                         <span>UPC</span>
@@ -379,14 +393,6 @@
         </footer>
     </div>
 </div>
-
-<datalist id="actTypeList">
-    <option value="满减活动"></option>
-    <option value="折扣活动"></option>
-    <option value="秒杀活动"></option>
-    <option value="优惠券活动"></option>
-    <option value="组合优惠"></option>
-</datalist>
 
 <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 

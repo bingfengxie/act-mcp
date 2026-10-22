@@ -33,6 +33,14 @@ const state = {
     }
 };
 
+const ACT_TYPES = [
+    { value: 1, label: '满减活动' },
+    { value: 2, label: '折扣活动' },
+    { value: 3, label: '秒杀活动' },
+    { value: 4, label: '优惠券活动' },
+    { value: 5, label: '组合优惠' }
+];
+
 const fieldMaps = {
     big: {
         name: 'bigName',
@@ -102,6 +110,22 @@ function scopeLabel(scope) {
 
 function scopeClass(scope) {
     return scope === 'NEW' ? 'scope-new' : 'scope-all';
+}
+
+function actTypeLabel(value) {
+    if (value === null || value === undefined || value === '') return '未设置';
+    const type = ACT_TYPES.find((item) => item.value === Number(value));
+    return type ? type.label : `类型 ${value}`;
+}
+
+function isValidLongId(value) {
+    if (!/^\d+$/.test(value)) return false;
+    try {
+        const number = BigInt(value);
+        return number > 0n && number <= 9223372036854775807n;
+    } catch {
+        return false;
+    }
 }
 
 function jsonPreview(raw) {
@@ -276,24 +300,17 @@ function renderPagination(view, listState) {
 }
 
 function updateTypeFilters() {
-    const types = new Set();
-    state.options.forEach((item) => item.actType && types.add(item.actType));
-    state.big.items.forEach((item) => item.actType && types.add(item.actType));
-    state.product.items.forEach((item) => item.actType && types.add(item.actType));
-
-    if (state.big.actType) types.add(state.big.actType);
-    if (state.product.actType) types.add(state.product.actType);
-
-    const sorted = Array.from(types).sort((a, b) => a.localeCompare(b, 'zh-CN'));
     [
-        ['bigTypeFilter', state.big.actType],
-        ['productTypeFilter', state.product.actType]
-    ].forEach(([id, selected]) => {
+        ['bigTypeFilter', state.big],
+        ['productTypeFilter', state.product]
+    ].forEach(([id, listState]) => {
         const select = document.getElementById(id);
         select.innerHTML = ['<option value="">全部类型</option>']
-            .concat(sorted.map((type) => `<option value="${escapeHtml(type)}">${escapeHtml(type)}</option>`))
+            .concat(ACT_TYPES.map((type) => `<option value="${type.value}">${type.value} · ${type.label}</option>`))
             .join('');
-        select.value = selected;
+        const known = ACT_TYPES.some((type) => String(type.value) === String(listState.actType));
+        select.value = known ? listState.actType : '';
+        if (!known) listState.actType = '';
     });
 }
 
@@ -423,7 +440,7 @@ function renderBigs() {
                     <div class="cell-title">${escapeHtml(item.name)}</div>
                     <div class="cell-sub">#${item.id} · 创建人 ${escapeHtml(item.createdBy || '—')}</div>
                 </td>
-                <td><span class="badge type">${escapeHtml(item.actType || '未设置')}</span></td>
+                <td><span class="badge type">${escapeHtml(actTypeLabel(item.actType))}</span></td>
                 <td>
                     <div class="time-range">
                         <span>${escapeHtml(formatDateTime(item.startTime))}</span>
@@ -481,7 +498,7 @@ function renderProducts() {
                     <div class="cell-title">${escapeHtml(item.actName || '—')}</div>
                     <div class="cell-sub">大活动 #${item.actId}</div>
                 </td>
-                <td><span class="badge type">${escapeHtml(item.actType || '未设置')}</span></td>
+                <td><span class="badge type">${escapeHtml(actTypeLabel(item.actType))}</span></td>
                 <td>
                     <button type="button" class="json-pill" data-action="view-product-json" data-id="${item.id}" title="查看完整 JSON">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4C6 4 5 5 5 7v3c0 1-.6 2-2 2 1.4 0 2 1 2 2v3c0 2 1 3 3 3M16 4c2 0 3 1 3 3v3c0 1 .6 2 2 2-1.4 0-2 1-2 2v3c0 2-1 3-3 3"/></svg>
@@ -588,6 +605,7 @@ function resetBigForm() {
     $('#bigEnd').value = toLocalInput(end);
     $('#bigBudget').value = '0';
     $('#bigScope').value = 'ALL';
+    $('#bigActType').value = '1';
     $('#bigJson').value = '{}';
     $('#bigModalTitle').textContent = '新建大活动';
     $('#bigSubmitBtn').textContent = '保存活动';
@@ -602,7 +620,7 @@ async function openBigModal(id = null) {
             $('#bigModalTitle').textContent = '编辑大活动';
             $('#bigSubmitBtn').textContent = '保存修改';
             $('#bigName').value = item.name || '';
-            $('#bigActType').value = item.actType || '';
+            $('#bigActType').value = item.actType ?? '';
             $('#bigScope').value = item.audienceScope || 'ALL';
             $('#bigStart').value = toInputDateTime(item.startTime);
             $('#bigEnd').value = toInputDateTime(item.endTime);
@@ -639,9 +657,9 @@ async function openProductModal(id = null, presetActId = null) {
             $('#productModalTitle').textContent = '编辑商品活动';
             $('#productSubmitBtn').textContent = '保存修改';
             $('#productActId').value = String(item.actId);
-            $('#productActType').value = item.actType || '';
-            $('#productPoiId').value = item.poiId || '';
-            $('#productSkuId').value = item.skuId || '';
+            $('#productActType').value = item.actType ?? '';
+            $('#productPoiId').value = item.poiId ?? '';
+            $('#productSkuId').value = item.skuId ?? '';
             $('#productUpc').value = item.upc || '';
             $('#productJson').value = item.productDiscountJson || '{}';
         } catch (error) {
@@ -654,7 +672,7 @@ async function openProductModal(id = null, presetActId = null) {
             $('#productActId').value = String(actId);
         }
         const selected = state.options.find((item) => String(item.id) === $('#productActId').value);
-        $('#productActType').value = selected ? selected.actType : '';
+        $('#productActType').value = selected ? (selected.actType ?? '') : '';
     }
 
     openModal('productModal');
@@ -912,7 +930,7 @@ function bindEvents() {
 
     $('#productActId').addEventListener('change', (event) => {
         const selected = state.options.find((item) => String(item.id) === event.target.value);
-        if (selected) $('#productActType').value = selected.actType || '';
+        if (selected) $('#productActType').value = selected.actType ?? '';
     });
 
     $$('[data-close]').forEach((button) => {
@@ -940,7 +958,7 @@ async function submitBigForm(event) {
     clearFormErrors('bigForm');
 
     const name = $('#bigName').value.trim();
-    const actType = $('#bigActType').value.trim();
+    const actType = $('#bigActType').value;
     const startTime = $('#bigStart').value;
     const endTime = $('#bigEnd').value;
     const audienceScope = $('#bigScope').value;
@@ -986,7 +1004,7 @@ async function submitBigForm(event) {
 
     const payload = {
         name,
-        actType,
+        actType: Number(actType),
         startTime,
         endTime,
         audienceScope,
@@ -1022,7 +1040,7 @@ async function submitProductForm(event) {
     clearFormErrors('productForm');
 
     const actId = $('#productActId').value;
-    const actType = $('#productActType').value.trim();
+    const actType = $('#productActType').value;
     const poiId = $('#productPoiId').value.trim();
     const skuId = $('#productSkuId').value.trim();
     const upc = $('#productUpc').value.trim();
@@ -1040,6 +1058,13 @@ async function submitProductForm(event) {
     if (!poiId) {
         errors.push('请填写 POI ID');
         markInvalid('productPoiId');
+    } else if (!isValidLongId(poiId)) {
+        errors.push('POI ID 必须是有效的正整数（最大 9223372036854775807）');
+        markInvalid('productPoiId');
+    }
+    if (skuId && !isValidLongId(skuId)) {
+        errors.push('SKU ID 必须是有效的正整数（最大 9223372036854775807）');
+        markInvalid('productSkuId');
     }
     if (!isValidJson(productDiscountJson)) {
         errors.push('商品优惠 JSON 格式不合法');
@@ -1054,9 +1079,9 @@ async function submitProductForm(event) {
 
     const payload = {
         actId: Number(actId),
-        actType,
+        actType: Number(actType),
         poiId,
-        skuId,
+        skuId: skuId || null,
         upc,
         productDiscountJson
     };

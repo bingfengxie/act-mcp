@@ -77,7 +77,7 @@ class ActivityApiIntegrationTest {
                         .content("""
                                 {
                                   "name": "测试大活动",
-                                  "actType": "满减活动",
+                                  "actType": 1,
                                   "startTime": "2026-10-01T00:00",
                                   "endTime": "2026-10-31T23:59",
                                   "audienceScope": "ALL",
@@ -87,27 +87,51 @@ class ActivityApiIntegrationTest {
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("测试大活动"))
+                .andExpect(jsonPath("$.actType").value(1))
                 .andExpect(jsonPath("$.createdBy").value("alice"))
                 .andExpect(jsonPath("$.productCount").value(0))
                 .andReturn();
 
         long bigId = readId(bigResult);
 
-        mockMvc.perform(post("/api/product-activities")
+        MvcResult productResult = mockMvc.perform(post("/api/product-activities")
                         .header("X-Operator", "alice")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "actId": %d,
-                                  "poiId": "POI_1001",
-                                  "skuId": "SKU_9001",
+                                  "poiId": "9007199254740993",
+                                  "skuId": "9001",
                                   "upc": "6901234567890",
                                   "productDiscountJson": "{\\"price\\":9.9}"
                                 }
                                 """.formatted(bigId)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.actName").value("测试大活动"))
-                .andExpect(jsonPath("$.actType").value("满减活动"));
+                .andExpect(jsonPath("$.actType").value(1))
+                .andExpect(jsonPath("$.poiId").value("9007199254740993"))
+                .andExpect(jsonPath("$.skuId").value("9001"))
+                .andReturn();
+
+        long productId = readId(productResult);
+
+        mockMvc.perform(put("/api/product-activities/{id}", productId)
+                        .header("X-Operator", "carol")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "actId": %d,
+                                  "actType": 2,
+                                  "poiId": "1002",
+                                  "upc": "6901234567890",
+                                  "productDiscountJson": "{}"
+                                }
+                                """.formatted(bigId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.actType").value(2))
+                .andExpect(jsonPath("$.poiId").value("1002"))
+                .andExpect(jsonPath("$.skuId").doesNotExist())
+                .andExpect(jsonPath("$.updatedBy").value("carol"));
 
         mockMvc.perform(get("/api/big-activities")
                         .param("keyword", "测试")
@@ -120,7 +144,8 @@ class ActivityApiIntegrationTest {
         mockMvc.perform(get("/api/product-activities").param("actId", String.valueOf(bigId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.total").value(1))
-                .andExpect(jsonPath("$.items[0].poiId").value("POI_1001"));
+                .andExpect(jsonPath("$.items[0].poiId").value("1002"))
+                .andExpect(jsonPath("$.items[0].skuId").doesNotExist());
 
         mockMvc.perform(put("/api/big-activities/{id}", bigId)
                         .header("X-Operator", "bob")
@@ -128,7 +153,7 @@ class ActivityApiIntegrationTest {
                         .content("""
                                 {
                                   "name": "测试大活动（更新）",
-                                  "actType": "满减活动",
+                                  "actType": 1,
                                   "startTime": "2026-10-01T00:00",
                                   "endTime": "2026-11-01T23:59",
                                   "audienceScope": "NEW",
@@ -166,7 +191,7 @@ class ActivityApiIntegrationTest {
                         .content("""
                                 {
                                   "name": "",
-                                  "actType": "满减活动",
+                                  "actType": 9,
                                   "startTime": "2026-10-01T00:00",
                                   "endTime": "2026-10-02T00:00",
                                   "audienceScope": "ALL",
@@ -175,6 +200,7 @@ class ActivityApiIntegrationTest {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors.name").exists())
+                .andExpect(jsonPath("$.fieldErrors.actType").exists())
                 .andExpect(jsonPath("$.fieldErrors.budget").exists());
 
         mockMvc.perform(post("/api/big-activities")
@@ -182,7 +208,7 @@ class ActivityApiIntegrationTest {
                         .content("""
                                 {
                                   "name": "时间错误",
-                                  "actType": "满减活动",
+                                  "actType": 1,
                                   "startTime": "2026-10-05T00:00",
                                   "endTime": "2026-10-01T00:00",
                                   "audienceScope": "ALL",
@@ -197,7 +223,7 @@ class ActivityApiIntegrationTest {
                         .content("""
                                 {
                                   "name": "JSON 错误",
-                                  "actType": "满减活动",
+                                  "actType": 1,
                                   "startTime": "2026-10-01T00:00",
                                   "endTime": "2026-10-02T00:00",
                                   "audienceScope": "ALL",
@@ -216,8 +242,8 @@ class ActivityApiIntegrationTest {
                         .content("""
                                 {
                                   "actId": 99999,
-                                  "actType": "满减活动",
-                                  "poiId": "POI_1001"
+                                  "actType": 1,
+                                  "poiId": "1001"
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
