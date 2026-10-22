@@ -1,9 +1,9 @@
 package com.actmcp.service;
 
 import com.actmcp.exception.BadRequestException;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -56,7 +56,7 @@ final class ValidationUtils {
                 throw new BadRequestException(fieldName + "不是合法的 JSON");
             }
             return value;
-        } catch (JsonProcessingException ex) {
+        } catch (JacksonException ex) {
             throw new BadRequestException(fieldName + "不是合法的 JSON：" + ex.getOriginalMessage());
         }
     }

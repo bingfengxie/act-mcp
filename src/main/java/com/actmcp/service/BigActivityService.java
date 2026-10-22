@@ -10,7 +10,7 @@ import com.actmcp.exception.NotFoundException;
 import com.actmcp.model.BigActivity;
 import com.actmcp.repository.BigActivityRepository;
 import com.actmcp.repository.ProductActivityRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

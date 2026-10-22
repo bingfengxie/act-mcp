@@ -3,15 +3,15 @@ package com.actmcp;
 import com.actmcp.controller.BigActivityController;
 import com.actmcp.controller.ProductActivityController;
 import com.actmcp.controller.StatsController;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -19,12 +19,16 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.web.client.RestClient;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.StreamSupport;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -64,8 +68,8 @@ class ActivityApiIntegrationTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @Autowired
-    private TestRestTemplate restTemplate;
+    @LocalServerPort
+    private int port;
 
     @Autowired
     private BigActivityController bigActivityController;
@@ -282,13 +286,135 @@ class ActivityApiIntegrationTest {
     }
 
     @Test
+    void exposesMcpToolsAndSupportsActivityCrud() throws Exception {
+        Map<String, Object> initialize = Map.of(
+                "jsonrpc", "2.0",
+                "id", 1,
+                "method", "initialize",
+                "params", Map.of(
+                        "protocolVersion", "2025-06-18",
+                        "capabilities", Map.of(),
+                        "clientInfo", Map.of("name", "junit", "version", "1.0")));
+
+        ResponseEntity<String> initResponse = mcpPost(initialize, null);
+        assertThat(initResponse.getStatusCode().is2xxSuccessful()).isTrue();
+        JsonNode init = readMcpBody(initResponse.getBody());
+        assertThat(init.at("/result/serverInfo/name").asText()).isEqualTo("act-mcp");
+
+        String sessionId = initResponse.getHeaders().getFirst("Mcp-Session-Id");
+        assertThat(sessionId).isNotBlank();
+        mcpPost(Map.of("jsonrpc", "2.0", "method", "notifications/initialized"), sessionId);
+
+        JsonNode toolsResponse = callMcp(sessionId, Map.of(
+                "jsonrpc", "2.0", "id", 2, "method", "tools/list"));
+        JsonNode tools = toolsResponse.at("/result/tools");
+        assertThat(tools.size()).isEqualTo(11);
+        List<String> toolNames = StreamSupport.stream(tools.spliterator(), false)
+                .map(node -> node.get("name").asText())
+                .toList();
+        assertThat(toolNames).contains(
+                "list_big_activities", "create_big_activity", "update_big_activity", "delete_big_activity",
+                "list_product_activities", "create_product_activity", "delete_product_activity",
+                "get_activity_stats");
+
+        JsonNode createdResponse = callMcp(sessionId, Map.of(
+                "jsonrpc", "2.0", "id", 3, "method", "tools/call",
+                "params", Map.of(
+                        "name", "create_big_activity",
+                        "arguments", Map.of(
+                                "name", "MCP 测试活动",
+                                "actType", 2,
+                                "startTime", "2026-11-01T00:00",
+                                "endTime", "2026-11-10T23:59",
+                                "audienceScope", "ALL",
+                                "budget", 500,
+                                "collectionDiscountJson", "{\"source\":\"mcp\"}",
+                                "operator", "junit-agent"))));
+
+        assertThat(createdResponse.at("/result/isError").asBoolean()).isFalse();
+        JsonNode created = objectMapper.readTree(createdResponse.at("/result/content/0/text").asText());
+        long bigId = created.get("id").asLong();
+        assertThat(created.get("name").asText()).isEqualTo("MCP 测试活动");
+        assertThat(created.get("createdBy").asText()).isEqualTo("junit-agent");
+
+        JsonNode productResponse = callMcp(sessionId, Map.of(
+                "jsonrpc", "2.0", "id", 4, "method", "tools/call",
+                "params", Map.of(
+                        "name", "create_product_activity",
+                        "arguments", Map.of(
+                                "actId", bigId,
+                                "poiId", "9007199254740993",
+                                "skuId", "9001",
+                                "productDiscountJson", "{\"price\":9.9}"))));
+        assertThat(productResponse.at("/result/isError").asBoolean()).isFalse();
+        JsonNode product = objectMapper.readTree(productResponse.at("/result/content/0/text").asText());
+        assertThat(product.get("poiId").asText()).isEqualTo("9007199254740993");
+
+        JsonNode deleteResponse = callMcp(sessionId, Map.of(
+                "jsonrpc", "2.0", "id", 5, "method", "tools/call",
+                "params", Map.of("name", "delete_big_activity", "arguments", Map.of("id", bigId))));
+        assertThat(deleteResponse.at("/result/isError").asBoolean()).isFalse();
+
+        JsonNode productsAfterDelete = callMcp(sessionId, Map.of(
+                "jsonrpc", "2.0", "id", 6, "method", "tools/call",
+                "params", Map.of(
+                        "name", "list_product_activities",
+                        "arguments", Map.of("actId", bigId))));
+        JsonNode productPage = objectMapper.readTree(
+                productsAfterDelete.at("/result/content/0/text").asText());
+        assertThat(productPage.get("total").asLong()).isZero();
+    }
+
+    @Test
     void exposesSpringMvcMappingsEndpoint() {
-        ResponseEntity<String> response = restTemplate.getForEntity("/actuator/mappings", String.class);
+        ResponseEntity<String> response = restClient().get()
+                .uri("/actuator/mappings")
+                .retrieve()
+                .toEntity(String.class);
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(response.getBody())
                 .contains("/api/big-activities")
                 .contains("/api/product-activities")
                 .contains("/api/stats");
+    }
+
+    private RestClient restClient() {
+        return RestClient.builder().baseUrl("http://localhost:" + port).build();
+    }
+
+    private ResponseEntity<String> mcpPost(Map<String, Object> payload, String sessionId) {
+        RestClient.RequestBodySpec request = restClient().post()
+                .uri("/mcp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON, MediaType.TEXT_EVENT_STREAM)
+                .header("MCP-Protocol-Version", "2025-06-18");
+        if (sessionId != null) {
+            request.header("Mcp-Session-Id", sessionId);
+        }
+        ResponseEntity<byte[]> raw = request.body(objectMapper.writeValueAsString(payload))
+                .retrieve()
+                .toEntity(byte[].class);
+        String body = raw.getBody() == null ? "" : new String(raw.getBody(), StandardCharsets.UTF_8);
+        return new ResponseEntity<>(body, raw.getHeaders(), raw.getStatusCode());
+    }
+
+    private JsonNode callMcp(String sessionId, Map<String, Object> payload) throws IOException {
+        ResponseEntity<String> response = mcpPost(payload, sessionId);
+        assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+        return readMcpBody(response.getBody());
+    }
+
+    private JsonNode readMcpBody(String body) throws IOException {
+        assertThat(body).isNotBlank();
+        if (body.contains("data:")) {
+            String data = Arrays.stream(body.split("\\n"))
+                    .filter(line -> line.startsWith("data:"))
+                    .reduce((first, second) -> second)
+                    .map(line -> line.substring(5).trim())
+                    .orElse(body);
+            return objectMapper.readTree(data);
+        }
+        return objectMapper.readTree(body);
     }
 
     private long readId(MvcResult result) throws IOException {

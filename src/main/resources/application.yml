@@ -22,6 +22,22 @@ spring:
   mvc:
     problemdetails:
       enabled: false
+  ai:
+    mcp:
+      server:
+        name: act-mcp
+        version: 1.0.0
+        protocol: STREAMABLE
+        instructions: |
+          活动管理 MCP 服务，可管理大活动和商品活动。
+          act_type 编码：1=满减活动，2=折扣活动，3=秒杀活动，4=优惠券活动，5=组合优惠。
+          audience_scope：ALL=所有用户，NEW=新客。
+          时间格式：yyyy-MM-ddTHH:mm。
+          写操作请通过 operator 参数提供操作人名称；未提供时记为 mcp-agent。
+        annotation-scanner:
+          enabled: false
+        streamable-http:
+          mcp-endpoint: /mcp
 
 management:
   endpoints:

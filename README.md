@@ -1,11 +1,12 @@
 # Act MCP · 活动管理平台
 
-一个基于 Spring Boot + SQLite 的活动管理 Web 系统，支持对大活动与商品活动两张表进行完整的增删改查，并提供筛选、分页、表单校验、JSON 优惠配置查看等能力。
+一个基于 Spring Boot + SQLite 的活动管理平台，同时提供 Web UI、REST API 与 MCP 接口，支持对大活动与商品活动两张表进行完整的增删改查，并提供筛选、分页、表单校验、JSON 优惠配置查看等能力。
 
 ## 技术栈
 
 - Java 21
-- Spring Boot 3.3（Spring MVC、Spring JDBC、Bean Validation）
+- Spring Boot 4.1（Spring MVC、Spring JDBC、Bean Validation）
+- Spring AI 2.0 MCP Server（Streamable HTTP）
 - SQLite（`sqlite-jdbc` 驱动，数据文件本地持久化）
 - 原生 HTML / CSS / JavaScript（无需 Node.js 构建）
 
@@ -25,6 +26,13 @@
 - 商品优惠 JSON 配置，支持格式化与完整预览
 - 按大活动、类型，以及活动名 / POI / SKU / UPC 关键字筛选
 - 编辑、删除
+
+### Agent / MCP 管理
+
+- 通过标准 MCP Streamable HTTP 协议连接 Agent
+- 提供大活动、商品活动的查询、创建、部分更新、删除工具
+- 与 Web UI、REST API 共用同一套 Service、校验规则和数据库
+- 写操作自动记录 Agent 传入的 `operator`
 
 ### 其他
 
@@ -188,6 +196,76 @@ curl -X PUT http://localhost:8090/api/big-activities \
 
 时间字段接受 `yyyy-MM-ddTHH:mm`、`yyyy-MM-dd HH:mm`、`yyyy-MM-dd HH:mm:ss` 格式，统一按 `yyyy-MM-dd HH:mm:ss` 存储与返回。
 
+## MCP 接口（Agent 管理）
+
+MCP Server 使用 Spring AI 2.0，传输协议为 **Streamable HTTP**，与现有 Web UI / REST API 运行在同一端口：
+
+```
+http://localhost:8090/mcp
+```
+
+Server 名称 `act-mcp`，版本 `1.0.0`，对外暴露 11 个工具。
+
+### 工具列表
+
+| 工具 | 说明 |
+| --- | --- |
+| `list_big_activities` | 分页筛选大活动 |
+| `get_big_activity` | 查询大活动详情 |
+| `create_big_activity` | 创建大活动 |
+| `update_big_activity` | 部分更新大活动，未传字段保持原值 |
+| `delete_big_activity` | 删除大活动并级联删除商品活动 |
+| `list_product_activities` | 分页筛选商品活动 |
+| `get_product_activity` | 查询商品活动详情 |
+| `create_product_activity` | 创建商品活动 |
+| `update_product_activity` | 部分更新商品活动，`skuId` 传空字符串可清空 |
+| `delete_product_activity` | 删除商品活动 |
+| `get_activity_stats` | 查询活动统计 |
+
+工具参数说明：
+
+- `actType`：`1` 满减、`2` 折扣、`3` 秒杀、`4` 优惠券、`5` 组合
+- `audienceScope`：`ALL` 所有用户、`NEW` 新客
+- 时间格式：`yyyy-MM-ddTHH:mm`
+- `poiId`、`skuId`：64 位整数，以字符串传递
+- `operator`：操作人，未传时记为 `mcp-agent`
+
+### 连接 Agent
+
+Claude Code：
+
+```bash
+claude mcp add --transport http act-mcp http://localhost:8090/mcp
+```
+
+支持 Streamable HTTP 的通用客户端配置：
+
+```json
+{
+  "mcpServers": {
+    "act-mcp": {
+      "type": "http",
+      "url": "http://localhost:8090/mcp"
+    }
+  }
+}
+```
+
+仅支持 stdio 的客户端可以通过 `mcp-remote` 桥接：
+
+```json
+{
+  "mcpServers": {
+    "act-mcp": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://localhost:8090/mcp"]
+    }
+  }
+}
+```
+
+MCP 工具直接复用现有 Service，因此与 Web 操作共享相同的 JSON 校验、时间校验、权限外审计字段和级联删除逻辑。
+
 ## 接口清单（Actuator）
 
 系统引入了 Spring Boot Actuator，并仅对外暴露 `mappings` 端点，可用于查看 Spring MVC 当前注册的所有后端接口：
@@ -220,6 +298,7 @@ act-mcp/
 │   ├── controller/        # REST 接口
 │   ├── dto/               # 请求对象、分页结果
 │   ├── exception/         # 统一异常处理
+│   ├── mcp/               # MCP 工具与 Server 配置
 │   ├── model/             # 数据模型
 │   ├── repository/        # Spring JDBC 数据访问
 │   └── service/           # 业务逻辑与校验
@@ -232,7 +311,7 @@ act-mcp/
 
 ## 说明
 
-- 当前系统面向本地或内网使用，未内置登录鉴权。如需公网部署，建议在 Spring Security 或网关层补充认证与权限控制。
-- 页面右上角的「操作人」仅用于记录创建人 / 修改人，不等同于身份认证。
+- 当前系统面向本地或内网使用，未内置登录鉴权。REST API、`/mcp` 和 `/actuator` 均未鉴权；如需公网部署，必须在 Spring Security 或网关层补充认证与访问控制。
+- 页面右上角的「操作人」及 MCP 的 `operator` 参数仅用于记录创建人 / 修改人，不等同于身份认证。
 - 数据库文件默认位于 `data/act-mcp.db`，备份时复制该文件即可（建议先停止服务）。
 
