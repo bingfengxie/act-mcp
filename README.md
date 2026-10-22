@@ -44,7 +44,7 @@ cd act-mcp
 mvn spring-boot:run
 ```
 
-浏览器访问：<http://localhost:8080>
+浏览器访问：<http://localhost:8090>
 
 也可以先打包再运行：
 
@@ -67,7 +67,7 @@ mvn test
 
 ```yaml
 server:
-  port: 8080
+  port: 8090
 
 spring:
   datasource:
@@ -129,7 +129,7 @@ spring:
 示例：
 
 ```bash
-curl -X POST http://localhost:8080/api/big-activities \
+curl -X POST http://localhost:8090/api/big-activities \
   -H 'Content-Type: application/json' \
   -H 'X-Operator: alice' \
   -d '{
@@ -164,3 +164,10 @@ act-mcp/
 │   └── static/            # 前端页面
 └── src/test/java/         # 接口集成测试
 ```
+
+## 说明
+
+- 当前系统面向本地或内网使用，未内置登录鉴权。如需公网部署，建议在 Spring Security 或网关层补充认证与权限控制。
+- 页面右上角的「操作人」仅用于记录创建人 / 修改人，不等同于身份认证。
+- 数据库文件默认位于 `data/act-mcp.db`，备份时复制该文件即可（建议先停止服务）。
+

@@ -485,7 +485,7 @@ function renderProducts() {
                 <td>
                     <button type="button" class="json-pill" data-action="view-product-json" data-id="${item.id}" title="查看完整 JSON">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4C6 4 5 5 5 7v3c0 1-.6 2-2 2 1.4 0 2 1 2 2v3c0 2 1 3 3 3M16 4c2 0 3 1 3 3v3c0 1 .6 2 2 2-1.4 0-2 1-2 2v3c0 2-1 3-3 3"/></svg>
-                        ${escapeHtml(jsonPreview(item.productDiscountJson))}
+                        <span>${escapeHtml(jsonPreview(item.productDiscountJson))}</span>
                     </button>
                 </td>
                 <td>

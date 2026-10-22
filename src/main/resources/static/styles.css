@@ -898,6 +898,12 @@ tbody tr:last-child td {
     stroke-linecap: round;
 }
 
+.json-pill span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .timestamp {
     display: flex;
     flex-direction: column;
@@ -1516,10 +1522,6 @@ tbody tr:last-child td {
 
     .main {
         padding-top: 22px;
-    }
-
-    .tables {
-        overflow-x: auto;
     }
 }
 
