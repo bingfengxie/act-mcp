@@ -51,3 +51,4 @@ management:
 logging:
   level:
     com.actmcp: INFO
+    org.springframework.ai: DEBUG
