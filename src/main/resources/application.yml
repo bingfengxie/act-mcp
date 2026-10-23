@@ -53,3 +53,6 @@ logging:
   level:
     com.actmcp: INFO
     org.springframework.ai: DEBUG
+    # macOS 上 Tomcat 对已被客户端 RST 的连接设置 SO_LINGER 会抛 EINVAL，
+    # 异常已被 NioEndpoint 捕获且不影响连接处理，关闭该 logger 避免刷屏
+    org.apache.tomcat.util.net.NioEndpoint: OFF
