@@ -103,10 +103,16 @@
                     <h2>大活动列表</h2>
                     <p>活动主体、时间范围、预算与集合优惠配置</p>
                 </div>
-                <button type="button" class="button primary" id="addBigBtn">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-                    新建大活动
-                </button>
+                <div class="panel-actions">
+                    <button type="button" class="button ghost" id="addBundleBtn">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/><circle cx="12" cy="12" r="9"/></svg>
+                        组合新建
+                    </button>
+                    <button type="button" class="button primary" id="addBigBtn">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                        新建大活动
+                    </button>
+                </div>
             </div>
 
             <div class="filters">
@@ -289,6 +295,130 @@
         </form>
     </div>
 </div>
+
+<!-- 组合新建：1 个大活动 + 多个商品活动 -->
+<div class="modal-backdrop" id="bundleModal" hidden>
+    <div class="modal modal-lg" role="dialog" aria-modal="true" aria-labelledby="bundleModalTitle">
+        <header class="modal-head">
+            <div>
+                <h3 id="bundleModalTitle">组合新建活动</h3>
+                <p>一次创建 1 个大活动，并把多个商品活动直接挂到它下面；任一步失败会整体回滚</p>
+            </div>
+            <button type="button" class="icon-button close-modal" data-close="bundleModal" aria-label="关闭">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
+        </header>
+        <form id="bundleForm" novalidate>
+            <div class="modal-body">
+                <div class="bundle-section-head">
+                    <div>
+                        <h4>大活动</h4>
+                        <p>活动主体、时间范围与集合优惠</p>
+                    </div>
+                </div>
+                <div class="form-grid">
+                    <label class="field span-2">
+                        <span>活动名称 <em>*</em></span>
+                        <input type="text" id="bundleName" maxlength="100" placeholder="例如：双十一全场满减" required>
+                    </label>
+                    <label class="field">
+                        <span>活动类型 <em>*</em></span>
+                        <select id="bundleActType" required>
+                            <option value="">请选择活动类型</option>
+                            <option value="1">1 · 满减活动</option>
+                            <option value="2">2 · 折扣活动</option>
+                            <option value="3">3 · 秒杀活动</option>
+                            <option value="4">4 · 优惠券活动</option>
+                            <option value="5">5 · 组合优惠</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span>活动人群 <em>*</em></span>
+                        <select id="bundleScope">
+                            <option value="ALL">所有用户</option>
+                            <option value="NEW">新客专享</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span>开始时间 <em>*</em></span>
+                        <input type="datetime-local" id="bundleStart" required>
+                    </label>
+                    <label class="field">
+                        <span>结束时间 <em>*</em></span>
+                        <input type="datetime-local" id="bundleEnd" required>
+                    </label>
+                    <label class="field">
+                        <span>预算（元） <em>*</em></span>
+                        <input type="number" id="bundleBudget" min="0" step="0.01" placeholder="0.00" required>
+                    </label>
+                    <label class="field span-2">
+                        <span>集合优惠 JSON</span>
+                        <div class="json-editor">
+                            <textarea id="bundleJson" rows="4" spellcheck="false" placeholder='{"threshold": 100, "discount": 20}'></textarea>
+                            <div class="json-toolbar">
+                                <button type="button" class="text-button" id="formatBundleJson">格式化 JSON</button>
+                                <span>需为合法 JSON，留空时保存为 <code>{}</code></span>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="bundle-section">
+                    <div class="bundle-section-head">
+                        <div>
+                            <h4>商品活动 <em>*</em></h4>
+                            <p>至少 1 个，创建后自动挂到上面的大活动下</p>
+                        </div>
+                        <button type="button" class="button ghost" id="addBundleProductBtn">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                            添加商品活动
+                        </button>
+                    </div>
+                    <div id="bundleProductList" class="bundle-product-list"></div>
+                </div>
+                <div class="form-error" id="bundleFormError" hidden></div>
+            </div>
+            <footer class="modal-foot">
+                <button type="button" class="button ghost" data-close="bundleModal">取消</button>
+                <button type="submit" class="button primary" id="bundleSubmitBtn">创建活动</button>
+            </footer>
+        </form>
+    </div>
+</div>
+
+<!-- 组合新建中的单个商品活动模板 -->
+<template id="bundleProductTemplate">
+    <article class="bundle-product">
+        <div class="bundle-product-head">
+            <span class="bundle-product-title">商品活动 <strong class="bundle-product-no">1</strong></span>
+            <button type="button" class="text-button danger-text" data-action="remove-bundle-product">移除</button>
+        </div>
+        <div class="form-grid">
+            <label class="field">
+                <span>POI ID <em>*</em></span>
+                <input type="text" data-field="poiId" inputmode="numeric" pattern="[0-9]*" maxlength="19" placeholder="例如：10001">
+            </label>
+            <label class="field">
+                <span>SKU ID</span>
+                <input type="text" data-field="skuId" inputmode="numeric" pattern="[0-9]*" maxlength="19" placeholder="可选">
+            </label>
+            <label class="field">
+                <span>UPC</span>
+                <input type="text" data-field="upc" maxlength="64" placeholder="可选">
+            </label>
+            <label class="field span-2">
+                <span>商品优惠 JSON</span>
+                <div class="json-editor">
+                    <textarea data-field="productDiscountJson" rows="3" spellcheck="false" placeholder='{"discountPrice": 9.9, "stock": 100}'></textarea>
+                    <div class="json-toolbar">
+                        <button type="button" class="text-button" data-action="format-bundle-product-json">格式化 JSON</button>
+                        <span>需为合法 JSON，留空时保存为 <code>{}</code></span>
+                    </div>
+                </div>
+            </label>
+        </div>
+    </article>
+</template>
 
 <!-- 商品活动表单 -->
 <div class="modal-backdrop" id="productModal" hidden>

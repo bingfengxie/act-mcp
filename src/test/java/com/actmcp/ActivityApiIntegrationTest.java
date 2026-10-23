@@ -276,6 +276,124 @@ class ActivityApiIntegrationTest {
     }
 
     @Test
+    void createsBigActivityWithMultipleProductsInOneRequest() throws Exception {
+        MvcResult bundleResult = mockMvc.perform(post("/api/big-activities/with-products")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "bigActivity": {
+                                    "name": "组合创建大活动",
+                                    "actType": 1,
+                                    "startTime": "2026-10-01T00:00",
+                                    "endTime": "2026-10-31T23:59",
+                                    "audienceScope": "ALL",
+                                    "budget": 1000,
+                                    "collectionDiscountJson": "{\\"threshold\\":100}",
+                                    "operator": "alice"
+                                  },
+                                  "productActivities": [
+                                    {
+                                      "poiId": "9007199254740993",
+                                      "skuId": "9001",
+                                      "upc": "6901234567890",
+                                      "productDiscountJson": "{\\"price\\":9.9}"
+                                    },
+                                    {
+                                      "poiId": "1002",
+                                      "productDiscountJson": "{}"
+                                    }
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        JsonNode body = objectMapper.readTree(bundleResult.getResponse().getContentAsString());
+        long bigId = body.at("/bigActivity/id").asLong();
+        assertThat(bigId).isPositive();
+        assertThat(body.at("/bigActivity/productCount").asLong()).isEqualTo(2);
+
+        JsonNode products = body.at("/productActivities");
+        assertThat(products.size()).isEqualTo(2);
+        assertThat(products.get(0).get("actId").asLong()).isEqualTo(bigId);
+        assertThat(products.get(0).get("actName").asText()).isEqualTo("组合创建大活动");
+        assertThat(products.get(0).get("actType").asInt()).isEqualTo(1);
+        assertThat(products.get(0).get("poiId").asText()).isEqualTo("9007199254740993");
+        assertThat(products.get(0).get("skuId").asText()).isEqualTo("9001");
+        assertThat(products.get(0).get("createdBy").asText()).isEqualTo("alice");
+        assertThat(products.get(1).get("actType").asInt()).isEqualTo(1);
+        assertThat(products.get(1).get("actId").asLong()).isEqualTo(bigId);
+
+        mockMvc.perform(get("/api/big-activities/{id}", bigId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.productCount").value(2));
+
+        mockMvc.perform(get("/api/product-activities").param("actId", String.valueOf(bigId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(2));
+    }
+
+    @Test
+    void rollsBackWholeBundleWhenAnyProductIsInvalid() throws Exception {
+        mockMvc.perform(post("/api/big-activities/with-products")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "bigActivity": {
+                                    "name": "应回滚的大活动",
+                                    "actType": 1,
+                                    "startTime": "2026-10-01T00:00",
+                                    "endTime": "2026-10-31T23:59",
+                                    "audienceScope": "ALL",
+                                    "budget": 1000
+                                  },
+                                  "productActivities": [
+                                    {"poiId": "1001"},
+                                    {"poiId": "1002", "productDiscountJson": "not-json"}
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("不是合法的 JSON")));
+
+        mockMvc.perform(get("/api/big-activities"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(0));
+
+        mockMvc.perform(get("/api/product-activities"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(0));
+    }
+
+    @Test
+    void rejectsBundleWithInvalidProductPayload() throws Exception {
+        mockMvc.perform(post("/api/big-activities/with-products")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "bigActivity": {
+                                    "name": "校验失败的大活动",
+                                    "actType": 1,
+                                    "startTime": "2026-10-01T00:00",
+                                    "endTime": "2026-10-31T23:59",
+                                    "audienceScope": "ALL",
+                                    "budget": 1000
+                                  },
+                                  "productActivities": [
+                                    {"poiId": "1001"},
+                                    {"poiId": null}
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors['productActivities[1].poiId']").exists());
+
+        mockMvc.perform(get("/api/big-activities"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(0));
+    }
+
+    @Test
     void controllerMethodsAcceptAtMostOneParameter() {
         List.of(bigActivityController, productActivityController, statsController).forEach((controller) ->
                 Arrays.stream(controller.getClass().getDeclaredMethods())
@@ -308,12 +426,13 @@ class ActivityApiIntegrationTest {
         JsonNode toolsResponse = callMcp(sessionId, Map.of(
                 "jsonrpc", "2.0", "id", 2, "method", "tools/list"));
         JsonNode tools = toolsResponse.at("/result/tools");
-        assertThat(tools.size()).isEqualTo(11);
+        assertThat(tools.size()).isEqualTo(12);
         List<String> toolNames = StreamSupport.stream(tools.spliterator(), false)
                 .map(node -> node.get("name").asText())
                 .toList();
         assertThat(toolNames).contains(
-                "list_big_activities", "create_big_activity", "update_big_activity", "delete_big_activity",
+                "list_big_activities", "create_big_activity", "create_big_activity_with_products",
+                "update_big_activity", "delete_big_activity",
                 "list_product_activities", "create_product_activity", "delete_product_activity",
                 "get_activity_stats");
 
@@ -350,13 +469,44 @@ class ActivityApiIntegrationTest {
         JsonNode product = objectMapper.readTree(productResponse.at("/result/content/0/text").asText());
         assertThat(product.get("poiId").asText()).isEqualTo("9007199254740993");
 
-        JsonNode deleteResponse = callMcp(sessionId, Map.of(
+        JsonNode bundleResponse = callMcp(sessionId, Map.of(
                 "jsonrpc", "2.0", "id", 5, "method", "tools/call",
+                "params", Map.of(
+                        "name", "create_big_activity_with_products",
+                        "arguments", Map.of(
+                                "name", "MCP 组合活动",
+                                "actType", 3,
+                                "startTime", "2026-11-01T00:00",
+                                "endTime", "2026-11-10T23:59",
+                                "audienceScope", "NEW",
+                                "budget", 800,
+                                "productActivitiesJson",
+                                "[{\"poiId\":\"501\",\"productDiscountJson\":\"{\\\"price\\\":1}\"},"
+                                        + "{\"poiId\":\"502\",\"skuId\":\"7002\"}]",
+                                "operator", "junit-agent"))));
+        assertThat(bundleResponse.at("/result/isError").asBoolean()).isFalse();
+        JsonNode bundle = objectMapper.readTree(bundleResponse.at("/result/content/0/text").asText());
+        long bundleId = bundle.at("/bigActivity/id").asLong();
+        assertThat(bundleId).isPositive();
+        assertThat(bundle.at("/bigActivity/productCount").asLong()).isEqualTo(2);
+        assertThat(bundle.at("/productActivities").size()).isEqualTo(2);
+        assertThat(bundle.at("/productActivities/0/actId").asLong()).isEqualTo(bundleId);
+        assertThat(bundle.at("/productActivities/0/actType").asInt()).isEqualTo(3);
+        assertThat(bundle.at("/productActivities/1/actId").asLong()).isEqualTo(bundleId);
+        assertThat(bundle.at("/productActivities/1/createdBy").asText()).isEqualTo("junit-agent");
+
+        JsonNode deleteBundleResponse = callMcp(sessionId, Map.of(
+                "jsonrpc", "2.0", "id", 6, "method", "tools/call",
+                "params", Map.of("name", "delete_big_activity", "arguments", Map.of("id", bundleId))));
+        assertThat(deleteBundleResponse.at("/result/isError").asBoolean()).isFalse();
+
+        JsonNode deleteResponse = callMcp(sessionId, Map.of(
+                "jsonrpc", "2.0", "id", 7, "method", "tools/call",
                 "params", Map.of("name", "delete_big_activity", "arguments", Map.of("id", bigId))));
         assertThat(deleteResponse.at("/result/isError").asBoolean()).isFalse();
 
         JsonNode productsAfterDelete = callMcp(sessionId, Map.of(
-                "jsonrpc", "2.0", "id", 6, "method", "tools/call",
+                "jsonrpc", "2.0", "id", 8, "method", "tools/call",
                 "params", Map.of(
                         "name", "list_product_activities",
                         "arguments", Map.of("actId", bigId))));

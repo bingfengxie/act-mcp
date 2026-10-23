@@ -1,6 +1,8 @@
 package com.actmcp.controller;
 
 import com.actmcp.dto.ActivityOption;
+import com.actmcp.dto.BigActivityBundleRequest;
+import com.actmcp.dto.BigActivityBundleResponse;
 import com.actmcp.dto.BigActivityQuery;
 import com.actmcp.dto.BigActivityRequest;
 import com.actmcp.dto.PageResult;
@@ -50,6 +52,15 @@ public class BigActivityController {
     public ResponseEntity<BigActivity> create(@Valid @RequestBody BigActivityRequest request) {
         BigActivity created = service.create(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    /**
+     * 一次创建 1 个大活动和多个商品活动，商品活动自动挂到新建的大活动下。
+     */
+    @PostMapping("/with-products")
+    public ResponseEntity<BigActivityBundleResponse> createWithProducts(
+            @Valid @RequestBody BigActivityBundleRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.createWithProducts(request));
     }
 
     @PutMapping

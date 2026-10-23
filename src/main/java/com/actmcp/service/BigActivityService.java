@@ -1,13 +1,18 @@
 package com.actmcp.service;
 
 import com.actmcp.dto.ActivityOption;
+import com.actmcp.dto.BigActivityBundleRequest;
+import com.actmcp.dto.BigActivityBundleResponse;
 import com.actmcp.dto.BigActivityQuery;
 import com.actmcp.dto.BigActivityRequest;
 import com.actmcp.dto.PageResult;
+import com.actmcp.dto.ProductActivityItemRequest;
+import com.actmcp.dto.ProductActivityRequest;
 import com.actmcp.dto.Stats;
 import com.actmcp.exception.BadRequestException;
 import com.actmcp.exception.NotFoundException;
 import com.actmcp.model.BigActivity;
+import com.actmcp.model.ProductActivity;
 import com.actmcp.repository.BigActivityRepository;
 import com.actmcp.repository.ProductActivityRepository;
 import tools.jackson.databind.ObjectMapper;
@@ -26,13 +31,16 @@ public class BigActivityService {
 
     private final BigActivityRepository bigActivityRepository;
     private final ProductActivityRepository productActivityRepository;
+    private final ProductActivityService productActivityService;
     private final ObjectMapper objectMapper;
 
     public BigActivityService(BigActivityRepository bigActivityRepository,
                               ProductActivityRepository productActivityRepository,
+                              ProductActivityService productActivityService,
                               ObjectMapper objectMapper) {
         this.bigActivityRepository = bigActivityRepository;
         this.productActivityRepository = productActivityRepository;
+        this.productActivityService = productActivityService;
         this.objectMapper = objectMapper;
     }
 
@@ -85,6 +93,38 @@ public class BigActivityService {
         );
         long id = bigActivityRepository.insert(activity);
         return get(id);
+    }
+
+    /**
+     * 组合创建：先创建大活动，再把它下属的多个商品活动挂到新大活动下。
+     * 任一步骤失败都会回滚整个事务，避免出现"只有大活动、没有商品活动"的中间状态。
+     */
+    @Transactional
+    public BigActivityBundleResponse createWithProducts(BigActivityBundleRequest request) {
+        BigActivityRequest bigRequest = request.bigActivity();
+        if (bigRequest.id() != null) {
+            throw new BadRequestException("新建大活动时不能指定 id");
+        }
+
+        BigActivity created = create(bigRequest);
+        List<ProductActivity> products = request.productActivities().stream()
+                .map(item -> productActivityService.create(toProductRequest(created.id(), bigRequest.operator(), item)))
+                .toList();
+        return new BigActivityBundleResponse(get(created.id()), products);
+    }
+
+    private ProductActivityRequest toProductRequest(long actId, String operator, ProductActivityItemRequest item) {
+        // actType 传 null，由 ProductActivityService 统一继承大活动的活动类型
+        return new ProductActivityRequest(
+                null,
+                actId,
+                null,
+                item.poiId(),
+                item.skuId(),
+                item.upc(),
+                item.productDiscountJson(),
+                operator
+        );
     }
 
     @Transactional

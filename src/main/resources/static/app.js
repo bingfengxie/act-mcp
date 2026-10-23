@@ -788,8 +788,32 @@ function bindEvents() {
 
     $('#addBigBtn').addEventListener('click', () => openBigModal());
     $('#bigEmptyAddBtn').addEventListener('click', () => openBigModal());
+    $('#addBundleBtn').addEventListener('click', openBundleModal);
     $('#addProductBtn').addEventListener('click', () => openProductModal());
     $('#productEmptyAddBtn').addEventListener('click', () => openProductModal());
+
+    $('#addBundleProductBtn').addEventListener('click', () => addBundleProduct());
+    $('#formatBundleJson').addEventListener('click', () => formatJsonField($('#bundleJson')));
+    $('#bundleForm').addEventListener('input', (event) => {
+        event.target.closest('.field')?.classList.remove('invalid');
+    });
+    $('#bundleProductList').addEventListener('click', (event) => {
+        const action = event.target.closest('[data-action]');
+        if (!action) return;
+        const card = action.closest('.bundle-product');
+
+        if (action.dataset.action === 'remove-bundle-product') {
+            if ($$('#bundleProductList .bundle-product').length <= 1) {
+                toast('至少保留一个商品活动', 'info');
+                return;
+            }
+            card.remove();
+            renumberBundleProducts();
+        } else if (action.dataset.action === 'format-bundle-product-json') {
+            formatJsonField(card.querySelector('[data-field="productDiscountJson"]'));
+        }
+    });
+    $('#bundleForm').addEventListener('submit', submitBundleForm);
 
     $('#bigKeyword').addEventListener('input', debounce((event) => {
         state.big.keyword = event.target.value.trim();
@@ -1111,6 +1135,173 @@ async function submitProductForm(event) {
             ? Object.values(error.fieldErrors).join('\n')
             : error.message);
         applyServerFieldErrors('product', error);
+    } finally {
+        setButtonLoading(button, false);
+    }
+}
+
+/* ---------- Bundle create ---------- */
+
+function addBundleProduct(defaults = {}) {
+    const template = document.getElementById('bundleProductTemplate');
+    const card = template.content.firstElementChild.cloneNode(true);
+    const set = (field, value) => {
+        const input = card.querySelector(`[data-field="${field}"]`);
+        if (input) input.value = value;
+    };
+    set('poiId', defaults.poiId ?? '');
+    set('skuId', defaults.skuId ?? '');
+    set('upc', defaults.upc ?? '');
+    set('productDiscountJson', defaults.productDiscountJson ?? '{}');
+    $('#bundleProductList').appendChild(card);
+    renumberBundleProducts();
+}
+
+function renumberBundleProducts() {
+    $$('#bundleProductList .bundle-product').forEach((card, index) => {
+        const no = card.querySelector('.bundle-product-no');
+        if (no) no.textContent = String(index + 1);
+    });
+}
+
+function resetBundleForm() {
+    $('#bundleForm').reset();
+    clearFormErrors('bundleForm');
+    const now = new Date();
+    const end = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    $('#bundleStart').value = toLocalInput(now);
+    $('#bundleEnd').value = toLocalInput(end);
+    $('#bundleBudget').value = '0';
+    $('#bundleScope').value = 'ALL';
+    $('#bundleActType').value = '1';
+    $('#bundleJson').value = '{}';
+    $('#bundleProductList').innerHTML = '';
+    addBundleProduct();
+}
+
+function openBundleModal() {
+    resetBundleForm();
+    openModal('bundleModal');
+    setTimeout(() => $('#bundleName').focus(), 50);
+}
+
+function markBundleField(card, field) {
+    const input = card.querySelector(`[data-field="${field}"]`);
+    if (input) input.closest('.field')?.classList.add('invalid');
+}
+
+async function submitBundleForm(event) {
+    event.preventDefault();
+    clearFormErrors('bundleForm');
+
+    const name = $('#bundleName').value.trim();
+    const actType = $('#bundleActType').value;
+    const startTime = $('#bundleStart').value;
+    const endTime = $('#bundleEnd').value;
+    const audienceScope = $('#bundleScope').value;
+    const budgetValue = $('#bundleBudget').value;
+    const collectionDiscountJson = $('#bundleJson').value.trim();
+    const errors = [];
+
+    if (!name) {
+        errors.push('请填写活动名称');
+        markInvalid('bundleName');
+    }
+    if (!actType) {
+        errors.push('请填写活动类型');
+        markInvalid('bundleActType');
+    }
+    if (!startTime) {
+        errors.push('请选择开始时间');
+        markInvalid('bundleStart');
+    }
+    if (!endTime) {
+        errors.push('请选择结束时间');
+        markInvalid('bundleEnd');
+    }
+    if (startTime && endTime && new Date(endTime) <= new Date(startTime)) {
+        errors.push('结束时间必须晚于开始时间');
+        markInvalid('bundleStart');
+        markInvalid('bundleEnd');
+    }
+    if (budgetValue === '' || Number.isNaN(Number(budgetValue)) || Number(budgetValue) < 0) {
+        errors.push('预算必须为不小于 0 的数字');
+        markInvalid('bundleBudget');
+    }
+    if (!isValidJson(collectionDiscountJson)) {
+        errors.push('集合优惠 JSON 格式不合法');
+        markInvalid('bundleJson');
+    }
+
+    const cards = $$('#bundleProductList .bundle-product');
+    if (cards.length === 0) {
+        errors.push('请至少添加一个商品活动');
+    }
+
+    const productActivities = cards.map((card, index) => {
+        const read = (field) => (card.querySelector(`[data-field="${field}"]`)?.value || '').trim();
+        const poiId = read('poiId');
+        const skuId = read('skuId');
+        const upc = read('upc');
+        const productDiscountJson = read('productDiscountJson');
+        const label = `商品活动 ${index + 1}`;
+
+        if (!poiId) {
+            errors.push(`${label}：请填写 POI ID`);
+            markBundleField(card, 'poiId');
+        } else if (!isValidLongId(poiId)) {
+            errors.push(`${label}：POI ID 必须是有效的正整数（最大 9223372036854775807）`);
+            markBundleField(card, 'poiId');
+        }
+        if (skuId && !isValidLongId(skuId)) {
+            errors.push(`${label}：SKU ID 必须是有效的正整数（最大 9223372036854775807）`);
+            markBundleField(card, 'skuId');
+        }
+        if (!isValidJson(productDiscountJson)) {
+            errors.push(`${label}：商品优惠 JSON 格式不合法`);
+            markBundleField(card, 'productDiscountJson');
+        }
+
+        return {
+            poiId,
+            skuId: skuId || null,
+            upc,
+            productDiscountJson: productDiscountJson || '{}'
+        };
+    });
+
+    if (errors.length > 0) {
+        showFormError('bundleForm', errors.join('\n'));
+        focusFirstInvalid('bundleForm');
+        return;
+    }
+
+    const payload = {
+        bigActivity: {
+            name,
+            actType: Number(actType),
+            startTime,
+            endTime,
+            audienceScope,
+            budget: Number(budgetValue),
+            collectionDiscountJson,
+            operator: state.operator || 'admin'
+        },
+        productActivities
+    };
+
+    const button = $('#bundleSubmitBtn');
+    setButtonLoading(button, true, '创建中…');
+    try {
+        const result = await api('/api/big-activities/with-products', { method: 'POST', body: payload });
+        closeModal('bundleModal');
+        toast(`创建成功：1 个大活动 + ${result.productActivities.length} 个商品活动`, 'success');
+        await refreshAll();
+        switchView('big');
+    } catch (error) {
+        showFormError('bundleForm', error.fieldErrors
+            ? Object.values(error.fieldErrors).join('\n')
+            : error.message);
     } finally {
         setButtonLoading(button, false);
     }

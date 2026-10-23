@@ -1,8 +1,11 @@
 package com.actmcp.mcp;
 
+import com.actmcp.dto.BigActivityBundleRequest;
+import com.actmcp.dto.BigActivityBundleResponse;
 import com.actmcp.dto.BigActivityQuery;
 import com.actmcp.dto.BigActivityRequest;
 import com.actmcp.dto.PageResult;
+import com.actmcp.dto.ProductActivityItemRequest;
 import com.actmcp.dto.ProductActivityQuery;
 import com.actmcp.dto.ProductActivityRequest;
 import com.actmcp.dto.Stats;
@@ -16,9 +19,13 @@ import jakarta.validation.Validator;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -33,13 +40,16 @@ public class ActivityMcpTools {
     private final BigActivityService bigActivityService;
     private final ProductActivityService productActivityService;
     private final Validator validator;
+    private final ObjectMapper objectMapper;
 
     public ActivityMcpTools(BigActivityService bigActivityService,
                             ProductActivityService productActivityService,
-                            Validator validator) {
+                            Validator validator,
+                            ObjectMapper objectMapper) {
         this.bigActivityService = bigActivityService;
         this.productActivityService = productActivityService;
         this.validator = validator;
+        this.objectMapper = objectMapper;
     }
 
     @Tool(name = "list_big_activities",
@@ -89,6 +99,41 @@ public class ActivityMcpTools {
         );
         validate(request);
         return bigActivityService.create(request);
+    }
+
+    @Tool(name = "create_big_activity_with_products",
+            description = "一次创建 1 个大活动及其下属的多个商品活动，商品活动自动挂到新建的大活动下；"
+                    + "任一商品活动创建失败时整体回滚，不会留下孤立的大活动。")
+    public BigActivityBundleResponse createBigActivityWithProducts(
+            @ToolParam(description = "活动名称") String name,
+            @ToolParam(description = "活动类型：1=满减，2=折扣，3=秒杀，4=优惠券，5=组合") Integer actType,
+            @ToolParam(description = "开始时间，格式 yyyy-MM-ddTHH:mm") String startTime,
+            @ToolParam(description = "结束时间，格式 yyyy-MM-ddTHH:mm") String endTime,
+            @ToolParam(description = "活动人群：ALL=所有用户，NEW=新客") String audienceScope,
+            @ToolParam(description = "预算，单位元") BigDecimal budget,
+            @ToolParam(required = false, description = "集合优惠 JSON 字符串，默认 {}") String collectionDiscountJson,
+            @ToolParam(description = "商品活动列表的 JSON 数组字符串，至少 1 个。每个条目支持 "
+                    + "poiId、skuId、upc、productDiscountJson，活动类型自动继承大活动；"
+                    + "poiId/skuId 建议用字符串传递以避免 64 位精度丢失。"
+                    + "示例：[{\"poiId\":\"1001\",\"skuId\":\"9001\",\"productDiscountJson\":\"{\\\"price\\\":9.9}\"}]")
+            String productActivitiesJson,
+            @ToolParam(required = false, description = "操作人，默认 mcp-agent") String operator) {
+        BigActivityBundleRequest request = new BigActivityBundleRequest(
+                new BigActivityRequest(
+                        null,
+                        name,
+                        actType,
+                        startTime,
+                        endTime,
+                        audienceScope,
+                        budget,
+                        collectionDiscountJson == null ? "{}" : collectionDiscountJson,
+                        operatorOrDefault(operator)
+                ),
+                parseProductActivities(productActivitiesJson)
+        );
+        validate(request);
+        return bigActivityService.createWithProducts(request);
     }
 
     @Tool(name = "update_big_activity",
@@ -241,6 +286,23 @@ public class ActivityMcpTools {
             throw new BadRequestException(fieldName + "不能为空");
         }
         return parsed;
+    }
+
+    private List<ProductActivityItemRequest> parseProductActivities(String raw) {
+        if (raw == null || raw.isBlank()) {
+            throw new BadRequestException("商品活动列表不能为空");
+        }
+        try {
+            List<ProductActivityItemRequest> items = objectMapper.readValue(
+                    raw.trim(), new TypeReference<List<ProductActivityItemRequest>>() {
+                    });
+            if (items == null || items.isEmpty()) {
+                throw new BadRequestException("至少需要创建一个商品活动");
+            }
+            return items;
+        } catch (JacksonException ex) {
+            throw new BadRequestException("商品活动列表不是合法的 JSON 数组：" + ex.getOriginalMessage());
+        }
     }
 
     private Long parseOptionalLong(String value, String fieldName) {

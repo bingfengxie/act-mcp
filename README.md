@@ -20,6 +20,12 @@
 - 编辑、删除；删除时级联清理关联的商品活动
 - 一键跳转到该活动下的商品活动列表
 
+### 组合创建
+
+- 一次请求创建 1 个大活动和多个商品活动，商品活动自动挂到新建的大活动下
+- 大活动与全部商品活动在同一事务内创建，任一商品活动失败时整体回滚
+- Web UI 的「组合新建」与 MCP 工具 `create_big_activity_with_products` 共用同一套 Service 与校验规则
+
 ### 商品活动管理
 
 - 绑定所属大活动，维护 POI ID、SKU ID、UPC 与活动类型
@@ -150,6 +156,7 @@ sqlite3 data/act-mcp.db < scripts/migrate-v2-int-types.sql
 | GET | `/api/big-activities/options` | 获取大活动下拉选项 |
 | GET | `/api/big-activities/{id}` | 查询大活动详情 |
 | POST | `/api/big-activities` | 新建大活动 |
+| POST | `/api/big-activities/with-products` | 组合新建：1 个大活动 + 多个商品活动（整体事务） |
 | PUT | `/api/big-activities` | 更新大活动（`id` 在请求体） |
 | DELETE | `/api/big-activities/{id}` | 删除大活动（级联删除商品活动） |
 | GET | `/api/product-activities` | 分页查询商品活动，支持 `page`、`size`、`actId`、`actType`、`keyword` |
@@ -194,6 +201,31 @@ curl -X PUT http://localhost:8090/api/big-activities \
   }'
 ```
 
+组合新建示例（返回结构为 `{ bigActivity, productActivities }`）：
+
+```bash
+curl -X POST http://localhost:8090/api/big-activities/with-products \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "bigActivity": {
+      "name": "双十一专场",
+      "actType": 1,
+      "startTime": "2026-11-01T00:00",
+      "endTime": "2026-11-12T23:59",
+      "audienceScope": "ALL",
+      "budget": 50000,
+      "collectionDiscountJson": "{\"threshold\":100,\"discount\":20}",
+      "operator": "alice"
+    },
+    "productActivities": [
+      {"poiId": "9007199254740993", "skuId": "9001", "productDiscountJson": "{\"price\":9.9}"},
+      {"poiId": "1002", "upc": "6901234567890"}
+    ]
+  }'
+```
+
+商品活动条目的 `actType`、`actId` 均无需传入：活动类型统一继承大活动，`actId` 由服务端自动挂到新建的大活动下。
+
 时间字段接受 `yyyy-MM-ddTHH:mm`、`yyyy-MM-dd HH:mm`、`yyyy-MM-dd HH:mm:ss` 格式，统一按 `yyyy-MM-dd HH:mm:ss` 存储与返回。
 
 ## MCP 接口（Agent 管理）
@@ -204,7 +236,7 @@ MCP Server 使用 Spring AI 2.0，传输协议为 **Streamable HTTP**，与现�
 http://localhost:8090/mcp
 ```
 
-Server 名称 `act-mcp`，版本 `1.0.0`，对外暴露 11 个工具。
+Server 名称 `act-mcp`，版本 `1.0.0`，对外暴露 12 个工具。
 
 ### 工具列表
 
@@ -213,6 +245,7 @@ Server 名称 `act-mcp`，版本 `1.0.0`，对外暴露 11 个工具。
 | `list_big_activities` | 分页筛选大活动 |
 | `get_big_activity` | 查询大活动详情 |
 | `create_big_activity` | 创建大活动 |
+| `create_big_activity_with_products` | 组合创建：1 个大活动 + 多个商品活动（整体事务） |
 | `update_big_activity` | 部分更新大活动，未传字段保持原值 |
 | `delete_big_activity` | 删除大活动并级联删除商品活动 |
 | `list_product_activities` | 分页筛选商品活动 |
@@ -229,6 +262,8 @@ Server 名称 `act-mcp`，版本 `1.0.0`，对外暴露 11 个工具。
 - 时间格式：`yyyy-MM-ddTHH:mm`
 - `poiId`、`skuId`：64 位整数，以字符串传递
 - `operator`：操作人，未传时记为 `mcp-agent`
+- `create_big_activity_with_products` 的 `productActivitiesJson` 是 JSON 数组字符串，例如
+  `[{"poiId":"1001","skuId":"9001","productDiscountJson":"{\"price\":9.9}"},{"poiId":"1002"}]`（活动类型自动继承大活动）
 
 ### 连接 Agent
 

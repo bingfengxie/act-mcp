@@ -523,6 +523,13 @@ button {
     color: var(--muted);
 }
 
+.panel-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
 /* ---------- Buttons ---------- */
 
 .button {
@@ -1132,6 +1139,10 @@ tbody tr:last-child td {
     width: min(540px, 100%);
 }
 
+.modal-lg {
+    width: min(760px, 100%);
+}
+
 .modal-xs {
     width: min(420px, 100%);
 }
@@ -1315,6 +1326,83 @@ tbody tr:last-child td {
     color: #5a6681;
     font-family: var(--mono);
     font-size: 10px;
+}
+
+/* ---------- Bundle create form ---------- */
+
+.bundle-section {
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px dashed var(--line-strong);
+}
+
+.bundle-section-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 13px;
+}
+
+.bundle-section-head h4 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+.bundle-section-head h4 em {
+    color: #e5484d;
+    font-style: normal;
+    margin-left: 1px;
+}
+
+.bundle-section-head p {
+    margin: 3px 0 0;
+    font-size: 11px;
+    color: var(--muted);
+}
+
+.bundle-product-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.bundle-product {
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface-soft);
+}
+
+.bundle-product-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.bundle-product-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #404b5e;
+}
+
+.bundle-product-title strong {
+    color: var(--primary);
+}
+
+.bundle-product .field textarea {
+    min-height: 76px;
+}
+
+.danger-text {
+    color: #e5484d;
+}
+
+.danger-text:hover {
+    color: #c93338;
 }
 
 .form-error {
@@ -1604,6 +1692,18 @@ tbody tr:last-child td {
 
     .panel-head .button {
         width: 100%;
+    }
+
+    .panel-actions {
+        width: 100%;
+    }
+
+    .panel-actions .button {
+        flex: 1;
+    }
+
+    .bundle-section-head {
+        flex-direction: column;
     }
 
     .filters {
