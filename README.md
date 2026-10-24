@@ -265,6 +265,27 @@ Server 名称 `act-mcp`，版本 `1.0.0`，对外暴露 12 个工具。
 - `create_big_activity_with_products` 的 `productActivitiesJson` 是 JSON 数组字符串，例如
   `[{"poiId":"1001","skuId":"9001","productDiscountJson":"{\"price\":9.9}"},{"poiId":"1002"}]`（活动类型自动继承大活动）
 
+### 资源（Resources）
+
+按 MCP 规范，Schema 与表单描述通过资源暴露，工具本身只保留动作语义。Agent 可在调用前读取对应资源，用返回的 Schema 校验参数或直接渲染表单。
+
+| 资源 URI | MIME | 说明 |
+| --- | --- | --- |
+| `activity://catalog/act-types` | `application/json` | 活动类型字典 |
+| `activity://catalog/audience-scopes` | `application/json` | 活动人群字典 |
+| `activity://docs/operations-handbook` | `text/markdown` | 字段规范、变更流程与数据质量要求 |
+| `activity://schemas/create-big-activity-with-products` | `application/schema+json` | `create_big_activity_with_products` 的入参 Schema 与表单描述 |
+| `activity://big-activities/{id}` | `application/json` | 大活动详情 |
+| `activity://product-activities/{id}` | `application/json` | 商品活动详情 |
+
+组合创建 Schema 采用 JSON Schema 2020-12，包含：
+
+- `properties`：每个入参的类型、必填、长度/数值/时间格式约束与枚举选项
+- `$defs.productActivityItem`：`productActivitiesJson` 中每个商品活动条目的结构，并通过 `contentSchema` 关联
+- `x-form`：表单渲染描述（字段顺序、控件类型、下拉选项、占位提示）
+- `x-business-rules`：跨字段业务规则（如结束时间晚于开始时间、整体事务回滚）
+- `examples`：可直接拷贝调用的完整入参示例
+
 ### 连接 Agent
 
 Claude Code：

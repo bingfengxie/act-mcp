@@ -516,6 +516,54 @@ class ActivityApiIntegrationTest {
     }
 
     @Test
+    void exposesCreateBigActivityWithProductsSchemaResource() throws Exception {
+        Map<String, Object> initialize = Map.of(
+                "jsonrpc", "2.0",
+                "id", 1,
+                "method", "initialize",
+                "params", Map.of(
+                        "protocolVersion", "2025-06-18",
+                        "capabilities", Map.of(),
+                        "clientInfo", Map.of("name", "junit", "version", "1.0")));
+        ResponseEntity<String> initResponse = mcpPost(initialize, null);
+        assertThat(initResponse.getStatusCode().is2xxSuccessful()).isTrue();
+        String sessionId = initResponse.getHeaders().getFirst("Mcp-Session-Id");
+        assertThat(sessionId).isNotBlank();
+        mcpPost(Map.of("jsonrpc", "2.0", "method", "notifications/initialized"), sessionId);
+
+        String schemaUri = "activity://schemas/create-big-activity-with-products";
+        JsonNode listResponse = callMcp(sessionId, Map.of(
+                "jsonrpc", "2.0", "id", 2, "method", "resources/list"));
+        List<String> resourceUris = StreamSupport.stream(listResponse.at("/result/resources").spliterator(), false)
+                .map(node -> node.get("uri").asText())
+                .toList();
+        assertThat(resourceUris).contains(schemaUri);
+
+        JsonNode readResponse = callMcp(sessionId, Map.of(
+                "jsonrpc", "2.0", "id", 3, "method", "resources/read",
+                "params", Map.of("uri", schemaUri)));
+        JsonNode schema = objectMapper.readTree(readResponse.at("/result/contents/0/text").asText());
+
+        assertThat(schema.get("$schema").asText()).isEqualTo("https://json-schema.org/draft/2020-12/schema");
+        assertThat(schema.get("x-tool").asText()).isEqualTo("create_big_activity_with_products");
+        assertThat(schema.at("/required").size()).isEqualTo(7);
+        assertThat(schema.at("/properties/actType/oneOf").size()).isEqualTo(5);
+        assertThat(schema.at("/properties/productActivitiesJson/contentSchema/items/$ref").asText())
+                .isEqualTo("#/$defs/productActivityItem");
+        assertThat(schema.at("/$defs/productActivityItem/required/0").asText()).isEqualTo("poiId");
+        assertThat(schema.at("/properties/name/x-form/label").asText()).isEqualTo("活动名称");
+        assertThat(schema.at("/properties/startTime/pattern").asText())
+                .isEqualTo("^\\d{4}-\\d{2}-\\d{2}[T ]\\d{2}:\\d{2}(:\\d{2}(\\.\\d+)?)?$");
+
+        JsonNode example = schema.at("/examples/0");
+        JsonNode productActivities = objectMapper.readTree(example.get("productActivitiesJson").asText());
+        assertThat(productActivities).hasSize(2);
+        assertThat(productActivities.get(0).get("productDiscountJson").asText()).isEqualTo("{\"price\":9.9}");
+        assertThat(objectMapper.readTree(example.get("collectionDiscountJson").asText()).get("threshold").asInt())
+                .isEqualTo(100);
+    }
+
+    @Test
     void exposesSpringMvcMappingsEndpoint() {
         ResponseEntity<String> response = restClient().get()
                 .uri("/actuator/mappings")

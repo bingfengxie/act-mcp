@@ -34,6 +34,7 @@ spring:
           audience_scope：ALL=所有用户，NEW=新客。
           时间格式：yyyy-MM-ddTHH:mm。
           需要同时创建大活动和多个商品活动时，优先使用 create_big_activity_with_products（整体事务，失败全部回滚）。
+          该工具完整入参 Schema 与表单描述见资源 activity://schemas/create-big-activity-with-products。
           写操作请通过 operator 参数提供操作人名称；未提供时记为 mcp-agent。
         annotation-scanner:
           enabled: false

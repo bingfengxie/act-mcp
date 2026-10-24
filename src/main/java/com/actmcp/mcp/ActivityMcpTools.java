@@ -103,7 +103,8 @@ public class ActivityMcpTools {
 
     @Tool(name = "create_big_activity_with_products",
             description = "一次创建 1 个大活动及其下属的多个商品活动，商品活动自动挂到新建的大活动下；"
-                    + "任一商品活动创建失败时整体回滚，不会留下孤立的大活动。")
+                    + "任一商品活动创建失败时整体回滚，不会留下孤立的大活动。"
+                    + "完整入参规则与示例见资源 activity://schemas/create-big-activity-with-products。")
     public BigActivityBundleResponse createBigActivityWithProducts(
             @ToolParam(description = "活动名称") String name,
             @ToolParam(description = "活动类型：1=满减，2=折扣，3=秒杀，4=优惠券，5=组合") Integer actType,
@@ -113,9 +114,9 @@ public class ActivityMcpTools {
             @ToolParam(description = "预算，单位元") BigDecimal budget,
             @ToolParam(required = false, description = "集合优惠 JSON 字符串，默认 {}") String collectionDiscountJson,
             @ToolParam(description = "商品活动列表的 JSON 数组字符串，至少 1 个。每个条目支持 "
-                    + "poiId、skuId、upc、productDiscountJson，活动类型自动继承大活动；"
+                    + "poiId（必填）、skuId、upc、productDiscountJson，活动类型与所属大活动自动继承/绑定；"
                     + "poiId/skuId 建议用字符串传递以避免 64 位精度丢失。"
-                    + "示例：[{\"poiId\":\"1001\",\"skuId\":\"9001\",\"productDiscountJson\":\"{\\\"price\\\":9.9}\"}]")
+                    + "完整结构与示例见资源 activity://schemas/create-big-activity-with-products。")
             String productActivitiesJson,
             @ToolParam(required = false, description = "操作人，默认 mcp-agent") String operator) {
         BigActivityBundleRequest request = new BigActivityBundleRequest(
